@@ -57,9 +57,8 @@ export function SignUp() {
       setSuccess(true);
       // Clear report flag so new users must upload first
       localStorage.removeItem("has_reports");
-      // Navigate to upload report after 1 second
       setTimeout(() => {
-        navigate("/upload-report");
+        navigate("/dashboard");
       }, 1000);
     } catch (err) {
       setLocalError(error || "Registration failed. Please try again.");
@@ -73,7 +72,7 @@ export function SignUp() {
         {success && (
           <div className="flex items-start gap-[8px] p-[12px] bg-[#DCFCE7] rounded-[8px] mb-[16px]">
             <CheckCircle className="w-[14px] h-[14px] text-[#166534] mt-[2px] flex-shrink-0" strokeWidth={1.5} />
-            <p className="text-[13px] text-[#166534]">Account created! Redirecting to dashboard...</p>
+            <p className="text-[13px] text-[#166534]">Account created! Redirecting to your dashboard...</p>
           </div>
         )}
 

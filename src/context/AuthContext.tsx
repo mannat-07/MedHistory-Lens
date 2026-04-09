@@ -11,11 +11,12 @@ export interface User {
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
+  /** True after initial session check (valid token verified or no token). */
+  authReady: boolean;
   isAuthenticated: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
-  continueAsGuest: () => void;
   logout: () => void;
   clearError: () => void;
 }
@@ -25,22 +26,33 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Check if user is already logged in on mount
   useEffect(() => {
     const checkAuth = async () => {
-      if (apiClient.hasAuthToken()) {
-        try {
-          setIsLoading(true);
-          const response = await apiClient.get<User>("/auth/me");
-          setUser(response);
-        } catch (err) {
-          apiClient.clearAuthToken();
-          setError("Session expired. Please sign in again.");
-        } finally {
-          setIsLoading(false);
-        }
+      const raw = localStorage.getItem("auth_token");
+      if (raw === "guest") {
+        apiClient.clearAuthToken();
+        setAuthReady(true);
+        return;
+      }
+      if (!apiClient.hasAuthToken()) {
+        setAuthReady(true);
+        return;
+      }
+      try {
+        setIsLoading(true);
+        const response = await apiClient.get<User>("/auth/me");
+        setUser(response);
+        setError(null);
+      } catch {
+        apiClient.clearAuthToken();
+        setUser(null);
+        setError("Session expired. Please sign in again.");
+      } finally {
+        setIsLoading(false);
+        setAuthReady(true);
       }
     };
 
@@ -96,12 +108,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
   }, []);
 
-  const continueAsGuest = useCallback(() => {
-    apiClient.setAuthToken("guest");
-    setUser(null);
-    setError(null);
-  }, []);
-
   const clearError = useCallback(() => {
     setError(null);
   }, []);
@@ -109,11 +115,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthContextType = {
     user,
     isLoading,
+    authReady,
     isAuthenticated: !!user,
     error,
     login,
     register,
-    continueAsGuest,
     logout,
     clearError,
   };

@@ -28,13 +28,11 @@ class ApiClient {
     return localStorage.getItem("auth_token");
   }
 
-  private getGuestId(): string {
-    let guestId = localStorage.getItem("guest_id");
-    if (!guestId) {
-      guestId = `guest-${crypto.randomUUID()}`;
-      localStorage.setItem("guest_id", guestId);
-    }
-    return guestId;
+  /** Returns JWT only; excludes legacy "guest" placeholder. */
+  private getBearerToken(): string | null {
+    const t = this.getAuthToken();
+    if (!t || t === "guest") return null;
+    return t;
   }
 
   private async handleResponse<T>(response: Response): Promise<T> {
@@ -63,13 +61,11 @@ class ApiClient {
   }
 
   async get<T>(endpoint: string): Promise<T> {
-    const token = this.getAuthToken();
+    const token = this.getBearerToken();
     const headers: HeadersInit = {
       "Content-Type": "application/json",
     };
-
-    headers["X-Guest-ID"] = this.getGuestId();
-    headers.Authorization = `Bearer ${token || "guest"}`;
+    if (token) headers.Authorization = `Bearer ${token}`;
 
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method: "GET",
@@ -80,13 +76,11 @@ class ApiClient {
   }
 
   async post<T>(endpoint: string, body?: Record<string, any>): Promise<T> {
-    const token = this.getAuthToken();
+    const token = this.getBearerToken();
     const headers: HeadersInit = {
       "Content-Type": "application/json",
     };
-
-    headers["X-Guest-ID"] = this.getGuestId();
-    headers.Authorization = `Bearer ${token || "guest"}`;
+    if (token) headers.Authorization = `Bearer ${token}`;
 
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method: "POST",
@@ -98,13 +92,11 @@ class ApiClient {
   }
 
   async put<T>(endpoint: string, body: Record<string, any>): Promise<T> {
-    const token = this.getAuthToken();
+    const token = this.getBearerToken();
     const headers: HeadersInit = {
       "Content-Type": "application/json",
     };
-
-    headers["X-Guest-ID"] = this.getGuestId();
-    headers.Authorization = `Bearer ${token || "guest"}`;
+    if (token) headers.Authorization = `Bearer ${token}`;
 
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method: "PUT",
@@ -124,11 +116,18 @@ class ApiClient {
   }
 
   hasAuthToken(): boolean {
-    return !!this.getAuthToken();
+    return this.getBearerToken() !== null;
   }
 }
 
 export const apiClient = new ApiClient();
+
+/** Non-guest JWT for API calls from components (ProtectedRoute ensures login). */
+export function getValidAuthToken(): string | null {
+  const t = localStorage.getItem("auth_token");
+  if (!t || t === "guest") return null;
+  return t;
+}
 
 // ============ AUTH ENDPOINTS ============
 export const login = async (email: string, password: string) => {
@@ -250,12 +249,9 @@ export const uploadReport = async (file: File, token: string) => {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
   const form = new FormData();
   form.append('file', file);
-  
-  const guestId = localStorage.getItem("guest_id") || `guest-${crypto.randomUUID()}`;
-  localStorage.setItem("guest_id", guestId);
   const response = await fetch(`${API_URL}/api/reports/upload`, {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${token || "guest"}`, "X-Guest-ID": guestId },
+    headers: { Authorization: `Bearer ${token}` },
     body: form
   });
   return response.json();
@@ -263,10 +259,8 @@ export const uploadReport = async (file: File, token: string) => {
 
 export const getReports = async (token: string) => {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const guestId = localStorage.getItem("guest_id") || `guest-${crypto.randomUUID()}`;
-  localStorage.setItem("guest_id", guestId);
   const response = await fetch(`${API_URL}/api/reports`, {
-    headers: { 'Authorization': `Bearer ${token || "guest"}`, "X-Guest-ID": guestId }
+    headers: { Authorization: `Bearer ${token}` }
   });
   return response.json();
 };
@@ -275,12 +269,9 @@ export const updateReport = async (reportId: number, file: File, token: string) 
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
   const form = new FormData();
   form.append('file', file);
-  
-  const guestId = localStorage.getItem("guest_id") || `guest-${crypto.randomUUID()}`;
-  localStorage.setItem("guest_id", guestId);
   const response = await fetch(`${API_URL}/api/reports/${reportId}`, {
     method: 'PUT',
-    headers: { 'Authorization': `Bearer ${token || "guest"}`, "X-Guest-ID": guestId },
+    headers: { Authorization: `Bearer ${token}` },
     body: form
   });
   return response.json();
@@ -288,10 +279,8 @@ export const updateReport = async (reportId: number, file: File, token: string) 
 
 export const downloadReport = async (reportId: number, token: string) => {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const guestId = localStorage.getItem("guest_id") || `guest-${crypto.randomUUID()}`;
-  localStorage.setItem("guest_id", guestId);
   const response = await fetch(`${API_URL}/api/reports/${reportId}/download`, {
-    headers: { 'Authorization': `Bearer ${token || "guest"}`, "X-Guest-ID": guestId }
+    headers: { Authorization: `Bearer ${token}` }
   });
 
   if (!response.ok) {
@@ -304,13 +293,10 @@ export const downloadReport = async (reportId: number, token: string) => {
 
 export const getHealthPredictions = async (symptoms: string[], token: string) => {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const guestId = localStorage.getItem("guest_id") || `guest-${crypto.randomUUID()}`;
-  localStorage.setItem("guest_id", guestId);
   const response = await fetch(`${API_URL}/api/predictions`, {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${token || "guest"}`,
-      "X-Guest-ID": guestId,
+      "Authorization": `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ symptoms }),
@@ -325,13 +311,10 @@ export const generateDietPlanForReport = async (
   language: "en" | "hi" = "en"
 ) => {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const guestId = localStorage.getItem("guest_id") || `guest-${crypto.randomUUID()}`;
-  localStorage.setItem("guest_id", guestId);
   const response = await fetch(`${API_URL}/api/reports/${reportId}/diet-plan`, {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${token || "guest"}`,
-      "X-Guest-ID": guestId,
+      "Authorization": `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ symptoms, language }),
@@ -341,13 +324,10 @@ export const generateDietPlanForReport = async (
 
 export const shareReport = async (reportId: number, token: string) => {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const guestId = localStorage.getItem("guest_id") || `guest-${crypto.randomUUID()}`;
-  localStorage.setItem("guest_id", guestId);
   const response = await fetch(`${API_URL}/api/reports/${reportId}/share`, {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${token || "guest"}`,
-      "X-Guest-ID": guestId,
+      "Authorization": `Bearer ${token}`,
     },
   });
   return response.json();
@@ -355,10 +335,8 @@ export const shareReport = async (reportId: number, token: string) => {
 
 export const exportReportPdf = async (reportId: number, token: string, language: "en" | "hi" = "en") => {
   const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const guestId = localStorage.getItem("guest_id") || `guest-${crypto.randomUUID()}`;
-  localStorage.setItem("guest_id", guestId);
   const response = await fetch(`${API_URL}/api/reports/${reportId}/export-pdf?language=${language}`, {
-    headers: { "Authorization": `Bearer ${token || "guest"}`, "X-Guest-ID": guestId },
+    headers: { Authorization: `Bearer ${token}` },
   });
   if (!response.ok) {
     const errorText = await response.text();

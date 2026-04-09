@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from "react-router";
-import { ChevronDown, MessageSquare } from "lucide-react";
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { MessageSquare } from "lucide-react";
+import { ReactNode, useMemo } from "react";
+import { useAuth } from "../../context/AuthContext";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -10,28 +11,16 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, breadcrumb }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [profileName, setProfileName] = useState("John Doe");
-
-  useEffect(() => {
-    const existing = localStorage.getItem("profile_name");
-    if (existing && existing.trim()) setProfileName(existing);
-  }, []);
+  const { user, logout } = useAuth();
+  
+  const profileName = user?.name || user?.email?.split('@')[0] || "User";
 
   const initials = useMemo(() => {
     const parts = profileName.trim().split(/\s+/).filter(Boolean);
-    if (parts.length === 0) return "JD";
+    if (parts.length === 0) return "U";
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
     return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
   }, [profileName]);
-
-  const editProfile = () => {
-    const next = window.prompt("Edit profile name", profileName);
-    if (next && next.trim()) {
-      const clean = next.trim();
-      setProfileName(clean);
-      localStorage.setItem("profile_name", clean);
-    }
-  };
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", path: "/dashboard" },
@@ -44,71 +33,64 @@ export function DashboardLayout({ children, breadcrumb }: DashboardLayoutProps) 
 
   return (
     <div className="min-h-screen bg-[#F9F9F8] flex flex-col">
-      {/* Navbar */}
-      <header className="h-[56px] px-[24px] flex items-center justify-between bg-white border-b border-[#E5E5E5]">
-        {/* Left: Wordmark */}
-        <button
-          onClick={() => navigate("/")}
-          className="text-[16px] font-medium text-[#111111] hover:text-[#1A6BFA] transition-colors"
-        >
-          MedHistory Lens
-        </button>
-
-        {/* Center: Breadcrumb */}
-        <div className="text-[13px] text-[#6B6B6B]">
-          Dashboard › {breadcrumb || "My Dashboard"}
-        </div>
-
-        {/* Right: Avatar */}
-        <div className="flex items-center gap-[16px]">
-          <button onClick={editProfile} className="flex items-center gap-[8px] hover:bg-[#F5F5F4] rounded-[8px] px-[8px] py-[4px] transition-colors">
-            <div className="w-[32px] h-[32px] rounded-full bg-[#1A6BFA] flex items-center justify-center">
-              <span className="text-[13px] font-semibold text-white">{initials}</span>
-            </div>
-            <span className="text-[13px] text-[#111111]">{profileName}</span>
-            <ChevronDown className="w-[16px] h-[16px] text-[#6B6B6B]" strokeWidth={1.5} />
-          </button>
-        </div>
-      </header>
-
       <div className="flex flex-1">
         {/* Sidebar */}
-        <aside className="w-[240px] bg-white border-r border-[#E5E5E5]">
+        <aside className="w-[240px] bg-white border-r border-[#E5E5E5] flex flex-col">
+          {/* Logo / Brand */}
+          <div className="px-[24px] py-[24px] border-b border-[#E5E5E5]">
+            <span className="text-[18px] font-bold text-[#111111] cursor-pointer" onClick={() => navigate('/dashboard')}>
+              MedHistory Lens
+            </span>
+          </div>
+
           {/* Patient info */}
           <div className="p-[24px] pb-[16px]">
             <div className="w-12 h-12 rounded-full bg-[#F0F0EF] flex items-center justify-center mb-3">
               <span className="text-[15px] font-semibold text-[#111111]">{initials}</span>
             </div>
             <div className="text-[14px] font-medium text-[#111111] mb-2">{profileName}</div>
-            <div className="text-[12px] text-[#6B6B6B] tracking-[0.04em]">REPORT DATE</div>
-            <div className="text-[13px] text-[#111111] font-medium">March 15, 2026</div>
-            <button onClick={editProfile} className="mt-3 text-[12px] text-[#1A6BFA] hover:underline">Edit Profile</button>
+            <div className="text-[12px] text-[#6B6B6B] tracking-[0.04em]">CURRENT USER</div>
           </div>
 
           {/* Main navigation */}
-          <nav className="px-[16px] pb-[16px]">
+          <nav className="px-[16px] pb-[16px] flex-1">
             {navItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => navigate(item.path)}
                 className={`w-full text-left px-[16px] py-[10px] rounded-[6px] text-[15px] transition-colors relative ${
                   activeItem === item.id
-                    ? "text-[#111111] font-semibold"
+                    ? "text-[#111111] font-semibold bg-[#F5F5F4]"
                     : "text-[#6B6B6B] hover:bg-[#F5F5F4] hover:text-[#111111]"
                 }`}
               >
                 {activeItem === item.id && (
-                  <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-[#1A6BFA] rounded-r-full" />
+                  <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-[#111111] rounded-r-[2px]" />
                 )}
                 {item.label}
               </button>
             ))}
           </nav>
 
+          {/* Bottom Actions */}
+          <div className="p-[16px] border-t border-[#E5E5E5]">
+            <button
+              onClick={() => {
+                logout();
+                navigate("/");
+              }}
+              className="w-full text-left px-[16px] py-[10px] rounded-[6px] text-[15px] font-medium text-[#D92D20] hover:bg-[#FEF2F2] transition-colors"
+            >
+              Sign Out
+            </button>
+          </div>
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 p-[32px] pt-[28px]">
+        <main className="flex-1 p-[32px] pt-[20px]">
+          <div className="text-[13px] text-[#6B6B6B] mb-[12px]">
+            Dashboard › {breadcrumb || "My Dashboard"}
+          </div>
           {children}
         </main>
       </div>

@@ -1,5 +1,5 @@
 import { DashboardLayout } from "./DashboardLayout";
-import { FileText, Calendar, User, Upload, AlertCircle, Sparkles } from "lucide-react";
+import { FileText, Calendar, User, Upload, AlertCircle, Sparkles, Loader2, Square } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import {
   downloadReport,
@@ -8,6 +8,7 @@ import {
   getReports,
   updateReport,
   uploadReport,
+  getValidAuthToken,
 } from "../../utils/api";
 import { DoctorSummary } from "./DoctorSummary";
 import { PredictionCards } from "./PredictionCards";
@@ -41,6 +42,7 @@ export function Reports() {
   const [dietLoading, setDietLoading] = useState(false);
   const [exportLoadingId, setExportLoadingId] = useState<number | null>(null);
   const [speakingReportId, setSpeakingReportId] = useState<number | null>(null);
+  const [ttsLoadingReportId, setTtsLoadingReportId] = useState<number | null>(null);
 
   const formatReportDate = (dateValue: string | null) => {
     if (!dateValue) return "Unknown date";
@@ -56,7 +58,12 @@ export function Reports() {
   const fetchReports = useCallback(async () => {
     setIsLoadingReports(true);
     try {
-      const token = localStorage.getItem("auth_token") || "guest";
+      const token = getValidAuthToken();
+      if (!token) {
+        setError("Not signed in.");
+        setReports([]);
+        return;
+      }
 
       const response = await getReports(token);
       if (!response.success) {
@@ -116,7 +123,11 @@ export function Reports() {
     setError(null);
 
     try {
-      const token = localStorage.getItem("auth_token") || "guest";
+      const token = getValidAuthToken();
+      if (!token) {
+        setError("Not signed in.");
+        return;
+      }
 
       const blob = await downloadReport(reportId, token);
       const url = window.URL.createObjectURL(blob);
@@ -148,7 +159,11 @@ export function Reports() {
       setError(null);
 
       try {
-        const token = localStorage.getItem("auth_token") || "guest";
+        const token = getValidAuthToken();
+        if (!token) {
+          setError("Not signed in.");
+          return;
+        }
 
         const response = await updateReport(reportId, file, token);
 
@@ -177,33 +192,86 @@ export function Reports() {
     input.click();
   };
 
-  const playDoctorVoice = (reportId: number, text?: string | null) => {
+  const stopDoctorVoice = () => {
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    setSpeakingReportId(null);
+    setTtsLoadingReportId(null);
+  };
+
+  const playDoctorVoice = async (reportId: number, text?: string | null) => {
     if (!("speechSynthesis" in window)) {
       setError("Doctor Voice is not supported in this browser.");
       return;
     }
-    if (!text) return;
-    if (speakingReportId === reportId) {
-      window.speechSynthesis.cancel();
-      setSpeakingReportId(null);
+    const clean = (text || "").trim();
+    if (!clean) {
+      setError("No summary text to read yet.");
       return;
     }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    const voices = window.speechSynthesis.getVoices();
-    const preferred =
-      voices.find((v) => /google uk english male/i.test(v.name)) ||
-      voices.find((v) => /uk english|india|english/i.test(v.name));
-    if (preferred) utterance.voice = preferred;
-    utterance.rate = 0.92;
-    utterance.pitch = 1;
-    utterance.onstart = () => setSpeakingReportId(reportId);
-    utterance.onend = () => setSpeakingReportId(null);
-    utterance.onerror = () => {
-      setSpeakingReportId(null);
-      setError("Doctor Voice could not start on this browser. Please try again.");
-    };
-    window.speechSynthesis.speak(utterance);
+    if (speakingReportId === reportId || ttsLoadingReportId === reportId) {
+      stopDoctorVoice();
+      return;
+    }
+    stopDoctorVoice();
+    setError(null);
+    setTtsLoadingReportId(reportId);
+
+    const ensureVoices = (): Promise<SpeechSynthesisVoice[]> =>
+      new Promise((resolve) => {
+        let voices = window.speechSynthesis.getVoices();
+        if (voices.length) {
+          resolve(voices);
+          return;
+        }
+        const done = () => {
+          window.speechSynthesis.onvoiceschanged = null;
+          resolve(window.speechSynthesis.getVoices());
+        };
+        window.speechSynthesis.onvoiceschanged = done;
+        window.setTimeout(done, 400);
+      });
+
+    await new Promise((r) => window.setTimeout(r, 0));
+
+    try {
+      const voices = await ensureVoices();
+      const utterance = new SpeechSynthesisUtterance(clean);
+      const preferred =
+        voices.find((v) => /en-GB|en_GB/i.test(v.lang) && /female|samantha|serena|martha|karen|zira/i.test(v.name)) ||
+        voices.find((v) => /en-GB|en_GB/i.test(v.lang)) ||
+        voices.find((v) => /^en(-|$)/i.test(v.lang));
+      if (preferred) {
+        utterance.voice = preferred;
+        utterance.lang = preferred.lang;
+      } else {
+        utterance.lang = "en-GB";
+      }
+      utterance.rate = 0.92;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+      utterance.onstart = () => {
+        setTtsLoadingReportId(null);
+        setSpeakingReportId(reportId);
+      };
+      utterance.onend = () => {
+        setSpeakingReportId(null);
+        setTtsLoadingReportId(null);
+      };
+      utterance.onerror = (ev) => {
+        setSpeakingReportId(null);
+        setTtsLoadingReportId(null);
+        if (ev.error === "not-allowed") {
+          setError("Speech was blocked. Use HTTPS or localhost, or allow audio in your browser settings.");
+        } else {
+          setError("Doctor Voice could not play. Try again or use another browser.");
+        }
+      };
+      window.speechSynthesis.cancel();
+      window.speechSynthesis.speak(utterance);
+    } catch {
+      setTtsLoadingReportId(null);
+      setError("Doctor Voice is unavailable.");
+    }
   };
 
   const openDietPlan = async (reportId: number) => {
@@ -211,7 +279,11 @@ export function Reports() {
     setDietLoading(true);
     setDietPlan(null);
     try {
-      const token = localStorage.getItem("auth_token") || "guest";
+      const token = getValidAuthToken();
+      if (!token) {
+        setError("Not signed in.");
+        return;
+      }
       const response = await generateDietPlanForReport(reportId, token, [], language);
       if (response?.success) {
         setDietPlan(response.diet_plan);
@@ -228,7 +300,11 @@ export function Reports() {
   const handleExportPdf = async (reportId: number) => {
     setExportLoadingId(reportId);
     try {
-      const token = localStorage.getItem("auth_token") || "guest";
+      const token = getValidAuthToken();
+      if (!token) {
+        setError("Not signed in.");
+        return;
+      }
       const blob = await exportReportPdf(reportId, token, language);
       const url = window.URL.createObjectURL(blob);
       const anchor = document.createElement("a");
@@ -258,7 +334,11 @@ export function Reports() {
       setError(null);
 
       try {
-        const token = localStorage.getItem("auth_token") || "guest";
+        const token = getValidAuthToken();
+        if (!token) {
+          setError("Not signed in.");
+          return;
+        }
 
         const response = await uploadReport(file, token);
 
@@ -430,10 +510,30 @@ export function Reports() {
                   </button>
                   <button
                     onClick={() => playDoctorVoice(report.id, report.voice_text || report.doctor_summary)}
-                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg"
+                    disabled={ttsLoadingReportId === report.id}
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg disabled:opacity-70 inline-flex items-center gap-2"
                   >
-                    {speakingReportId === report.id ? "🔊 Speaking... (Tap to stop)" : "🔊 Listen to Doctor"}
+                    {ttsLoadingReportId === report.id ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Preparing voice...
+                      </>
+                    ) : speakingReportId === report.id ? (
+                      "🔊 Speaking... (tap to stop)"
+                    ) : (
+                      "🔊 Listen to Doctor"
+                    )}
                   </button>
+                  {speakingReportId === report.id && (
+                    <button
+                      type="button"
+                      onClick={stopDoctorVoice}
+                      className="px-4 py-2 bg-slate-700 text-white rounded-lg inline-flex items-center gap-1"
+                    >
+                      <Square className="w-3 h-3 fill-current" />
+                      Stop
+                    </button>
+                  )}
                 </div>
               </div>
 

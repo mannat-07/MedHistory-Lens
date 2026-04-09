@@ -5,7 +5,7 @@ from app.models import HealthMetric, User, ChatMessage, MedicalReport
 from app.schemas import HealthMetricCreate, HealthMetricResponse, DashboardResponse
 from app.services.health_service import health_service
 from datetime import date
-from app.auth import get_current_user_optional
+from app.auth import get_current_user_required
 
 router = APIRouter(prefix="/api/health", tags=["health"])
 
@@ -20,18 +20,15 @@ def get_user_id_from_request(request: Request) -> int:
     return int(user_id)
 
 
-def _base_metrics_query(db: Session, request: Request, current_user):
-    if current_user:
-        return db.query(HealthMetric).filter(HealthMetric.user_id == int(current_user.id))
-    guest_id = request.headers.get("X-Guest-ID") or (request.state.guest_id if hasattr(request.state, "guest_id") else "guest")
-    return db.query(HealthMetric).filter(HealthMetric.guest_id == guest_id)
+def _base_metrics_query(db: Session, current_user: User):
+    return db.query(HealthMetric).filter(HealthMetric.user_id == int(current_user.id))
 
 @router.get("/dashboard", response_model=DashboardResponse)
-def get_dashboard(request: Request, db: Session = Depends(get_db), current_user=Depends(get_current_user_optional)):
+def get_dashboard(db: Session = Depends(get_db), current_user: User = Depends(get_current_user_required)):
     """Get dashboard data (latest metrics, trends, risks, alerts)"""
     
     # Get latest metrics
-    latest = _base_metrics_query(db, request, current_user).order_by(HealthMetric.test_date.desc(), HealthMetric.id.desc()).first()
+    latest = _base_metrics_query(db, current_user).order_by(HealthMetric.test_date.desc(), HealthMetric.id.desc()).first()
     
     # If no metrics, return empty/default dashboard
     if not latest:
@@ -46,7 +43,7 @@ def get_dashboard(request: Request, db: Session = Depends(get_db), current_user=
         )
     
     # Get history for trends
-    history = _base_metrics_query(db, request, current_user).order_by(HealthMetric.test_date.asc()).all()
+    history = _base_metrics_query(db, current_user).order_by(HealthMetric.test_date.asc()).all()
     
     # Calculate risks
     diabetes_risk = health_service.calculate_diabetes_risk(
@@ -78,19 +75,14 @@ def get_dashboard(request: Request, db: Session = Depends(get_db), current_user=
             "cholesterol": health_service.get_trend_data(history, "total_cholesterol"),
             "hba1c": health_service.get_trend_data(history, "hba1c"),
         },
-        doctorSummary=_get_latest_doctor_summary(db, request, current_user),
+        doctorSummary=_get_latest_doctor_summary(db, current_user),
         healthTrendMessage=health_trend_message,
         alerts=alerts
     )
 
 
-def _get_latest_doctor_summary(db: Session, request: Request, current_user):
-    query = db.query(MedicalReport)
-    if current_user:
-        query = query.filter(MedicalReport.user_id == int(current_user.id))
-    else:
-        guest_id = request.headers.get("X-Guest-ID") or (request.state.guest_id if hasattr(request.state, "guest_id") else "guest")
-        query = query.filter(MedicalReport.guest_id == guest_id)
+def _get_latest_doctor_summary(db: Session, current_user: User):
+    query = db.query(MedicalReport).filter(MedicalReport.user_id == int(current_user.id))
     latest_report = query.order_by(MedicalReport.created_at.desc()).first()
     return latest_report.doctor_summary if latest_report else None
 
@@ -125,7 +117,7 @@ def _build_health_trend_message(history):
     return "Your trend looks steady. Keep monitoring and maintain healthy habits."
 
 @router.get("/{category}")
-def get_health_data(category: str, request: Request, db: Session = Depends(get_db), current_user=Depends(get_current_user_optional)):
+def get_health_data(category: str, db: Session = Depends(get_db), current_user: User = Depends(get_current_user_required)):
     """Get health data for specific category (blood, heart, organs, nutrition)"""
     
     # Validate category
@@ -137,7 +129,7 @@ def get_health_data(category: str, request: Request, db: Session = Depends(get_d
         )
     
     # Get latest metrics
-    latest = _base_metrics_query(db, request, current_user).order_by(HealthMetric.test_date.desc(), HealthMetric.id.desc()).first()
+    latest = _base_metrics_query(db, current_user).order_by(HealthMetric.test_date.desc(), HealthMetric.id.desc()).first()
     
     # Default response structure by category
     response = {}
@@ -158,7 +150,7 @@ def get_health_data(category: str, request: Request, db: Session = Depends(get_d
         return response
     
     # Get history for trends
-    history = _base_metrics_query(db, request, current_user).order_by(HealthMetric.test_date.asc()).all()
+    history = _base_metrics_query(db, current_user).order_by(HealthMetric.test_date.asc()).all()
     
     # Return data by category
     if category == "blood":

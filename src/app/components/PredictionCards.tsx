@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { getHealthPredictions } from "../../utils/api";
+import { getHealthPredictions, getValidAuthToken } from "../../utils/api";
 
 interface PredictionItem {
   name: string;
@@ -32,7 +32,8 @@ export function PredictionCards() {
     if (symptoms.length === 0) return;
     setLoading(true);
     try {
-      const token = localStorage.getItem("auth_token") || "guest";
+      const token = getValidAuthToken();
+      if (!token) return;
       const response = await getHealthPredictions(symptoms, token);
       setPredictions(Array.isArray(response?.predictions) ? response.predictions : []);
     } finally {

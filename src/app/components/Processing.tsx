@@ -1,22 +1,13 @@
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router";
 import { FileText, Upload, AlertCircle, CheckCircle } from "lucide-react";
-import { useAuth } from "../../context/AuthContext";
-
 export function Processing() {
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-
-  // Redirect if not authenticated
-  if (!isAuthenticated) {
-    navigate("/signin");
-    return null;
-  }
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

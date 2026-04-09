@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router";
 import { FileText, Upload, AlertCircle, CheckCircle, Loader } from "lucide-react";
 import { useState, useRef } from "react";
-import { uploadReport } from "../../utils/api";
+import { uploadReport, getValidAuthToken } from "../../utils/api";
 import { DashboardLayout } from "./DashboardLayout";
 
 export function UploadReport() {
@@ -60,7 +60,11 @@ export function UploadReport() {
     setUploadProgress(0);
 
     try {
-      const token = localStorage.getItem("auth_token") || "guest";
+      const token = getValidAuthToken();
+      if (!token) {
+        setError("Your session expired. Please sign in again.");
+        return;
+      }
 
       // Simulate progress
       const progressInterval = setInterval(() => {

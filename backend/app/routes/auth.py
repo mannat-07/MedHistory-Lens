@@ -22,6 +22,9 @@ def get_token_from_header(request: Request) -> str:
 def register(user_data: UserRegister, db: Session = Depends(get_db)):
     """Register a new user"""
     
+    # Normalize email to lowercase to prevent case-sensitive login bugs
+    user_data.email = user_data.email.lower()
+    
     # Check if user already exists
     existing_user = db.query(User).filter(User.email == user_data.email).first()
     if existing_user:
@@ -51,6 +54,9 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
 @router.post("/login", response_model=TokenResponse)
 def login(credentials: UserLogin, db: Session = Depends(get_db)):
     """Login user with email and password"""
+    
+    # Normalize email to lowercase
+    credentials.email = credentials.email.lower()
     
     try:
         # Find user

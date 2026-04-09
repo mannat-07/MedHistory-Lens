@@ -1,11 +1,12 @@
-import { useNavigate } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { AlertCircle } from "lucide-react";
 
 export function SignIn() {
   const navigate = useNavigate();
-  const { login, continueAsGuest, isLoading, error, clearError } = useAuth();
+  const location = useLocation();
+  const { login, isLoading, error, clearError } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [localError, setLocalError] = useState("");
@@ -22,7 +23,8 @@ export function SignIn() {
 
     try {
       await login(email, password);
-      navigate("/dashboard");
+      const from = (location.state as { from?: { pathname?: string } })?.from?.pathname || "/dashboard";
+      navigate(from, { replace: true });
     } catch (err) {
       setLocalError(error || "Login failed. Please try again.");
     }
@@ -119,8 +121,8 @@ export function SignIn() {
         <button
           type="button"
           disabled={isLoading}
-          onClick={() => navigate("/dashboard")}
-          className="w-full h-[44px] border border-[#E5E5E5] text-[#111111] text-[15px] font-medium rounded-[8px] hover:border-[#1A6BFA] transition-colors flex items-center justify-center gap-[8px] disabled:opacity-50"
+          className="w-full h-[44px] border border-[#E5E5E5] text-[#111111] text-[15px] font-medium rounded-[8px] opacity-60 cursor-not-allowed flex items-center justify-center gap-[8px]"
+          title="Not configured for this demo"
         >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
             <path d="M17.64 9.20454C17.64 8.56636 17.5827 7.95273 17.4764 7.36364H9V10.845H13.8436C13.635 11.97 13.0009 12.9232 12.0477 13.5614V15.8195H14.9564C16.6582 14.2527 17.64 11.9455 17.64 9.20454Z" fill="#4285F4"/>
@@ -129,18 +131,6 @@ export function SignIn() {
             <path d="M9 3.57955C10.3214 3.57955 11.5077 4.03364 12.4405 4.92545L15.0218 2.34409C13.4632 0.891818 11.4259 0 9 0C5.48182 0 2.43818 2.01682 0.957275 4.95818L3.96409 7.29C4.67182 5.16273 6.65591 3.57955 9 3.57955Z" fill="#EA4335"/>
           </svg>
           Continue with Google
-        </button>
-
-        <button
-          type="button"
-          disabled={isLoading}
-          onClick={() => {
-            continueAsGuest();
-            navigate("/dashboard");
-          }}
-          className="w-full mt-[12px] h-[44px] border border-[#1A6BFA] text-[#1A6BFA] text-[15px] font-medium rounded-[8px] hover:bg-[#EFF6FF] transition-colors disabled:opacity-50"
-        >
-          Continue as Guest
         </button>
 
         {/* Sign up link */}

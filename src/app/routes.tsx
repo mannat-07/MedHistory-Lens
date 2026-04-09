@@ -14,6 +14,7 @@ import { Vitamins } from "./components/Vitamins";
 import { BiomarkerDetail } from "./components/BiomarkerDetail";
 import { NewAiChat } from "./components/NewAiChat";
 import { UploadReport } from "./components/UploadReport";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 export const router = createBrowserRouter([
   {
@@ -29,51 +30,20 @@ export const router = createBrowserRouter([
     Component: SignUp,
   },
   {
-    path: "/processing",
-    Component: Processing,
-  },
-  {
-    path: "/upload-report",
-    Component: UploadReport,
-  },
-  {
-    path: "/dashboard",
-    Component: NewDashboard,
-  },
-  {
-    path: "/health-overview",
-    Component: HealthOverview,
-  },
-  {
-    path: "/ai-prediction",
-    Component: AiPrediction,
-  },
-  {
-    path: "/reports",
-    Component: Reports,
-  },
-  {
-    path: "/blood-count",
-    Component: BloodCount,
-  },
-  {
-    path: "/heart-cholesterol",
-    Component: HeartCholesterol,
-  },
-  {
-    path: "/organ-sugar",
-    Component: OrganSugarLevels,
-  },
-  {
-    path: "/vitamins",
-    Component: Vitamins,
-  },
-  {
-    path: "/biomarker/:biomarker",
-    Component: BiomarkerDetail,
-  },
-  {
-    path: "/chat",
-    Component: NewAiChat,
+    element: <ProtectedRoute />,
+    children: [
+      { path: "/processing", Component: Processing },
+      { path: "/upload-report", Component: UploadReport },
+      { path: "/dashboard", Component: NewDashboard },
+      { path: "/health-overview", Component: HealthOverview },
+      { path: "/ai-prediction", Component: AiPrediction },
+      { path: "/reports", Component: Reports },
+      { path: "/blood-count", Component: BloodCount },
+      { path: "/heart-cholesterol", Component: HeartCholesterol },
+      { path: "/organ-sugar", Component: OrganSugarLevels },
+      { path: "/vitamins", Component: Vitamins },
+      { path: "/biomarker/:biomarker", Component: BiomarkerDetail },
+      { path: "/chat", Component: NewAiChat },
+    ],
   },
 ]);

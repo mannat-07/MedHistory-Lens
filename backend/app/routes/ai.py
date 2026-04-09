@@ -3,7 +3,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from app.database import get_db
-from app.models import ChatMessage, Prediction, HealthMetric, MedicalReport
+from app.models import User, ChatMessage, Prediction, HealthMetric, MedicalReport
 from app.schemas import PredictionRequest, ChatMessageCreate, ChatReplyResponse
 from app.services.ai_service import ai_service
 from app.services.health_service import health_service
@@ -14,7 +14,7 @@ import json
 import re
 import os
 import tempfile
-from app.auth import get_current_user_optional
+from app.auth import get_current_user_required
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
@@ -30,15 +30,6 @@ def get_user_id_from_request(request: Request) -> int:
             detail="Missing user authentication"
         )
     return int(user_id)
-
-
-def get_actor_context(request: Request, current_user):
-    if current_user:
-        return int(current_user.id), None
-    guest_id = request.headers.get("X-Guest-ID") or (request.state.guest_id if hasattr(request.state, "guest_id") else None)
-    if not guest_id:
-        guest_id = "guest"
-    return 0, guest_id
 
 
 def _get_reports_for_actor(db: Session, user_id: int, guest_id: str):
@@ -111,7 +102,7 @@ def _get_reports_directory() -> Path:
     return reports_dir
 
 @router.post("/predictions")
-def analyze_symptoms(request: PredictionRequest, req: Request, db: Session = Depends(get_db), current_user=Depends(get_current_user_optional)):
+def analyze_symptoms(request: PredictionRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user_required)):
     """Analyze symptoms and predict potential risks using reports + symptoms."""
     
     if not request.symptoms or len(request.symptoms) == 0:
@@ -120,7 +111,8 @@ def analyze_symptoms(request: PredictionRequest, req: Request, db: Session = Dep
             detail="At least one symptom is required"
         )
     
-    user_id, guest_id = get_actor_context(req, current_user)
+    user_id = int(current_user.id)
+    guest_id = None
     reports = _get_reports_for_actor(db, user_id, guest_id)
     latest_report = reports[0] if reports else None
     latest_reports = []
@@ -139,7 +131,7 @@ def analyze_symptoms(request: PredictionRequest, req: Request, db: Session = Dep
     
     # Store in database for audit
     prediction_record = Prediction(
-        user_id=user_id or 0,
+        user_id=user_id,
         symptoms=request.symptoms,
         prediction_date=date.today(),
         diseases=predictions.get("predictions", [])
@@ -277,17 +269,12 @@ def get_diet_plan(user_id: int = None, db: Session = Depends(get_db)):
 
 @router.get("/reports")
 def get_reports(
-    request: Request,
     db: Session = Depends(get_db),
-    current_user=Depends(get_current_user_optional)
+    current_user: User = Depends(get_current_user_required),
 ):
-    """Get all uploaded reports for the current user or guest."""
-    user_id, guest_id = get_actor_context(request, current_user)
-    query = db.query(MedicalReport)
-    if user_id:
-        query = query.filter(MedicalReport.user_id == user_id)
-    else:
-        query = query.filter(MedicalReport.guest_id == guest_id)
+    """Get all uploaded reports for the current user."""
+    user_id = int(current_user.id)
+    query = db.query(MedicalReport).filter(MedicalReport.user_id == user_id)
     reports = query.order_by(desc(MedicalReport.created_at)).all()
 
     response = []
@@ -321,25 +308,19 @@ def get_reports(
 
 
 @router.get("/reports/{report_id}/download")
-async def download_report(report_id: int, request: Request, db: Session = Depends(get_db), current_user=Depends(get_current_user_optional)):
+async def download_report(report_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user_required)):
     report = db.query(Report).filter(Report.id == report_id).first()
     if not report or not (report.file_path or report.file_url) or not os.path.exists(report.file_path or report.file_url):
         raise HTTPException(404, "Report not found")
 
-    # Owner/guest authorization check
-    if current_user:
-        if report.user_id != int(current_user.id):
-            raise HTTPException(status_code=403, detail="Not authorized to access this report")
-    else:
-        guest_id = request.headers.get("X-Guest-ID") or "guest"
-        if report.guest_id != guest_id:
-            raise HTTPException(status_code=403, detail="Not authorized to access this report")
+    if report.user_id != int(current_user.id):
+        raise HTTPException(status_code=403, detail="Not authorized to access this report")
     return FileResponse(report.file_path or report.file_url, filename=f"Lab_Report_{report_id}.pdf", media_type="application/pdf")
 
 @router.post("/reports/upload")
-async def upload_report(request: Request,
+async def upload_report(
                        file: UploadFile = File(...), 
-                       current_user=Depends(get_current_user_optional),
+                       current_user: User = Depends(get_current_user_required),
                        db: Session = Depends(get_db)):
     """Upload and analyze a medical report (PDF)"""
     
@@ -356,8 +337,9 @@ async def upload_report(request: Request,
 
         # Persist original PDF for later download.
         reports_dir = _get_reports_directory()
-        user_id, guest_id = get_actor_context(request, current_user)
-        actor_prefix = f"user{user_id}" if user_id else f"guest_{guest_id}"
+        user_id = int(current_user.id)
+        guest_id = None
+        actor_prefix = f"user{user_id}"
         file_name = f"{actor_prefix}_{uuid4().hex}.pdf"
         file_path = reports_dir / file_name
         file_path.write_bytes(contents)
@@ -526,8 +508,8 @@ async def upload_report(request: Request,
         )
 
 @router.put("/reports/{report_id}")
-async def update_report(report_id: int, request: Request, file: UploadFile = File(...), 
-                       current_user=Depends(get_current_user_optional),
+async def update_report(report_id: int, file: UploadFile = File(...), 
+                       current_user: User = Depends(get_current_user_required),
                        db: Session = Depends(get_db)):
     """Update an existing medical report with a new PDF"""
     
@@ -539,12 +521,11 @@ async def update_report(report_id: int, request: Request, file: UploadFile = Fil
         )
     
     try:
-        user_id, guest_id = get_actor_context(request, current_user)
-        base_query = db.query(MedicalReport).filter(MedicalReport.id == report_id)
-        if user_id:
-            base_query = base_query.filter(MedicalReport.user_id == user_id)
-        else:
-            base_query = base_query.filter(MedicalReport.guest_id == guest_id)
+        user_id = int(current_user.id)
+        base_query = db.query(MedicalReport).filter(
+            MedicalReport.id == report_id,
+            MedicalReport.user_id == user_id,
+        )
         report = base_query.first()
         
         if not report:
@@ -562,7 +543,7 @@ async def update_report(report_id: int, request: Request, file: UploadFile = Fil
             file_path.parent.mkdir(parents=True, exist_ok=True)
         else:
             reports_dir = _get_reports_directory()
-            actor_prefix = f"user{user_id}" if user_id else f"guest_{guest_id}"
+            actor_prefix = f"user{user_id}"
             file_path = reports_dir / f"{actor_prefix}_{uuid4().hex}.pdf"
             report.file_url = str(file_path)
             report.file_path = str(file_path)
@@ -690,10 +671,9 @@ async def update_report(report_id: int, request: Request, file: UploadFile = Fil
 
 
 @router.post("/reports/{report_id}/diet-plan")
-def generate_report_diet_plan(report_id: int, request: Request, payload: dict = None, db: Session = Depends(get_db), current_user=Depends(get_current_user_optional)):
-    user_id, guest_id = get_actor_context(request, current_user)
-    query = db.query(MedicalReport).filter(MedicalReport.id == report_id)
-    query = query.filter(MedicalReport.user_id == user_id) if user_id else query.filter(MedicalReport.guest_id == guest_id)
+def generate_report_diet_plan(report_id: int, payload: dict = None, db: Session = Depends(get_db), current_user: User = Depends(get_current_user_required)):
+    user_id = int(current_user.id)
+    query = db.query(MedicalReport).filter(MedicalReport.id == report_id, MedicalReport.user_id == user_id)
     report = query.first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
@@ -708,10 +688,9 @@ def generate_report_diet_plan(report_id: int, request: Request, payload: dict = 
 
 
 @router.post("/reports/{report_id}/share")
-def create_share_link(report_id: int, request: Request, db: Session = Depends(get_db), current_user=Depends(get_current_user_optional)):
-    user_id, guest_id = get_actor_context(request, current_user)
-    query = db.query(MedicalReport).filter(MedicalReport.id == report_id)
-    query = query.filter(MedicalReport.user_id == user_id) if user_id else query.filter(MedicalReport.guest_id == guest_id)
+def create_share_link(report_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user_required)):
+    user_id = int(current_user.id)
+    query = db.query(MedicalReport).filter(MedicalReport.id == report_id, MedicalReport.user_id == user_id)
     report = query.first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
@@ -740,10 +719,9 @@ def get_public_report(share_token: str, language: str = "en", db: Session = Depe
 
 
 @router.get("/reports/{report_id}/export-pdf")
-def export_report_pdf(report_id: int, request: Request, language: str = "en", db: Session = Depends(get_db), current_user=Depends(get_current_user_optional)):
-    user_id, guest_id = get_actor_context(request, current_user)
-    query = db.query(MedicalReport).filter(MedicalReport.id == report_id)
-    query = query.filter(MedicalReport.user_id == user_id) if user_id else query.filter(MedicalReport.guest_id == guest_id)
+def export_report_pdf(report_id: int, language: str = "en", db: Session = Depends(get_db), current_user: User = Depends(get_current_user_required)):
+    user_id = int(current_user.id)
+    query = db.query(MedicalReport).filter(MedicalReport.id == report_id, MedicalReport.user_id == user_id)
     report = query.first()
     if not report:
         raise HTTPException(status_code=404, detail="Report not found")
