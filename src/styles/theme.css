@@ -1,0 +1,112 @@
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* MedHistory Lens Color Palette */
+  --background: #F9F9F8;
+  --surface: #FFFFFF;
+  --primary: #1A6BFA;
+  --text-primary: #111111;
+  --text-secondary: #6B6B6B;
+  --border-color: #E5E5E5;
+  --success: #16A34A;
+  --warning: #D97706;
+  --danger: #DC2626;
+  --tag-bg: #F0F0EF;
+  
+  /* Typography - Inter font */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro', system-ui, sans-serif;
+  --font-size: 16px;
+  
+  /* Font sizes following the design spec */
+  --text-h1: 28px;
+  --text-h2: 20px;
+  --text-body: 15px;
+  --text-caption: 12px;
+  --text-label: 16px;
+  
+  /* Line height */
+  --line-height: 1.6;
+  
+  /* Border radius */
+  --radius-card: 12px;
+  --radius-input: 8px;
+  --radius-pill: 24px;
+  
+  /* Spacing (8px grid) */
+  --spacing-1: 8px;
+  --spacing-2: 16px;
+  --spacing-3: 24px;
+  --spacing-4: 32px;
+  --spacing-5: 40px;
+  --spacing-6: 48px;
+  
+  /* Shadow */
+  --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-primary: var(--primary);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-border: var(--border-color);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-tag-bg: var(--tag-bg);
+}
+
+@layer base {
+  * {
+    @apply outline-none;
+    border-color: var(--border-color);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--text-primary);
+    font-family: var(--font-family);
+    line-height: var(--line-height);
+    font-size: var(--text-body);
+  }
+
+  html {
+    font-size: var(--font-size);
+  }
+
+  h1 {
+    font-size: var(--text-h1);
+    font-weight: 600;
+    line-height: var(--line-height);
+  }
+
+  h2 {
+    font-size: var(--text-h2);
+    font-weight: 600;
+    line-height: var(--line-height);
+  }
+
+  p {
+    font-size: var(--text-body);
+    font-weight: 400;
+    line-height: var(--line-height);
+  }
+
+  label {
+    font-size: var(--text-caption);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    line-height: var(--line-height);
+    text-transform: uppercase;
+  }
+
+  button {
+    font-family: var(--font-family);
+  }
+
+  input, textarea {
+    font-family: var(--font-family);
+    font-size: var(--text-body);
+  }
+}
