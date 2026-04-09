@@ -8,6 +8,13 @@ export interface DashboardData {
   diabetesRisk: number;
   heartDiseaseRisk: number;
   trends: Array<{ date: string; value: number }>;
+  metricTrends?: {
+    glucose?: Array<{ date: string; value: number }>;
+    cholesterol?: Array<{ date: string; value: number }>;
+    hba1c?: Array<{ date: string; value: number }>;
+  };
+  doctorSummary?: string;
+  healthTrendMessage?: string;
   alerts: Array<{ name: string; value: string; range: string; status: "warning" | "danger" }>;
 }
 

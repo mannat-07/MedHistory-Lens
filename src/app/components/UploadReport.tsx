@@ -60,12 +60,7 @@ export function UploadReport() {
     setUploadProgress(0);
 
     try {
-      const token = localStorage.getItem("auth_token");
-      if (!token) {
-        setError("Not authenticated. Please login first.");
-        navigate("/signin");
-        return;
-      }
+      const token = localStorage.getItem("auth_token") || "guest";
 
       // Simulate progress
       const progressInterval = setInterval(() => {
@@ -77,7 +72,7 @@ export function UploadReport() {
       clearInterval(progressInterval);
       setUploadProgress(100);
 
-      if (response.status === "success") {
+      if (response.status === "success" || response.success === true) {
         setSuccess(true);
         localStorage.setItem("has_reports", "true");
         // Set refresh flag for components to refetch data

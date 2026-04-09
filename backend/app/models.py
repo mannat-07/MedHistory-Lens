@@ -23,6 +23,7 @@ class HealthMetric(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, nullable=False, index=True)
+    guest_id = Column(String(64), nullable=True, index=True)
     test_date = Column(Date, nullable=False)
     
     # Blood metrics
@@ -79,9 +80,15 @@ class MedicalReport(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, nullable=False, index=True)
+    guest_id = Column(String(64), nullable=True, index=True)
     file_url = Column(String(500))
+    file_path = Column(String(500), nullable=True)
     upload_date = Column(Date, nullable=False)
     report_type = Column(String(50))  # 'blood_test', 'general', etc
     raw_text = Column(Text, nullable=True)  # Extracted text from PDF
     parsed_data = Column(JSON, nullable=True)  # Parsed biomarkers and analysis
+    doctor_summary = Column(Text, nullable=True)
+    share_token = Column(String(128), nullable=True, index=True, unique=True)
+    doctor_advice = Column(String(255), nullable=True)
+    diet_plan_cache = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

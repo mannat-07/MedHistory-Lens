@@ -28,6 +28,15 @@ class ApiClient {
     return localStorage.getItem("auth_token");
   }
 
+  private getGuestId(): string {
+    let guestId = localStorage.getItem("guest_id");
+    if (!guestId) {
+      guestId = `guest-${crypto.randomUUID()}`;
+      localStorage.setItem("guest_id", guestId);
+    }
+    return guestId;
+  }
+
   private async handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
       const error: ApiError = {
@@ -59,9 +68,8 @@ class ApiClient {
       "Content-Type": "application/json",
     };
 
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
+    headers["X-Guest-ID"] = this.getGuestId();
+    headers.Authorization = `Bearer ${token || "guest"}`;
 
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method: "GET",
@@ -77,9 +85,8 @@ class ApiClient {
       "Content-Type": "application/json",
     };
 
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
+    headers["X-Guest-ID"] = this.getGuestId();
+    headers.Authorization = `Bearer ${token || "guest"}`;
 
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method: "POST",
@@ -96,9 +103,8 @@ class ApiClient {
       "Content-Type": "application/json",
     };
 
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
+    headers["X-Guest-ID"] = this.getGuestId();
+    headers.Authorization = `Bearer ${token || "guest"}`;
 
     const response = await fetch(`${this.baseUrl}${endpoint}`, {
       method: "PUT",
@@ -245,10 +251,22 @@ export const uploadReport = async (file: File, token: string) => {
   const form = new FormData();
   form.append('file', file);
   
+  const guestId = localStorage.getItem("guest_id") || `guest-${crypto.randomUUID()}`;
+  localStorage.setItem("guest_id", guestId);
   const response = await fetch(`${API_URL}/api/reports/upload`, {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}` },
+    headers: { 'Authorization': `Bearer ${token || "guest"}`, "X-Guest-ID": guestId },
     body: form
+  });
+  return response.json();
+};
+
+export const getReports = async (token: string) => {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  const guestId = localStorage.getItem("guest_id") || `guest-${crypto.randomUUID()}`;
+  localStorage.setItem("guest_id", guestId);
+  const response = await fetch(`${API_URL}/api/reports`, {
+    headers: { 'Authorization': `Bearer ${token || "guest"}`, "X-Guest-ID": guestId }
   });
   return response.json();
 };
@@ -258,12 +276,95 @@ export const updateReport = async (reportId: number, file: File, token: string) 
   const form = new FormData();
   form.append('file', file);
   
+  const guestId = localStorage.getItem("guest_id") || `guest-${crypto.randomUUID()}`;
+  localStorage.setItem("guest_id", guestId);
   const response = await fetch(`${API_URL}/api/reports/${reportId}`, {
     method: 'PUT',
-    headers: { 'Authorization': `Bearer ${token}` },
+    headers: { 'Authorization': `Bearer ${token || "guest"}`, "X-Guest-ID": guestId },
     body: form
   });
   return response.json();
+};
+
+export const downloadReport = async (reportId: number, token: string) => {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  const guestId = localStorage.getItem("guest_id") || `guest-${crypto.randomUUID()}`;
+  localStorage.setItem("guest_id", guestId);
+  const response = await fetch(`${API_URL}/api/reports/${reportId}/download`, {
+    headers: { 'Authorization': `Bearer ${token || "guest"}`, "X-Guest-ID": guestId }
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || `Failed to download report (HTTP ${response.status})`);
+  }
+
+  return response.blob();
+};
+
+export const getHealthPredictions = async (symptoms: string[], token: string) => {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  const guestId = localStorage.getItem("guest_id") || `guest-${crypto.randomUUID()}`;
+  localStorage.setItem("guest_id", guestId);
+  const response = await fetch(`${API_URL}/api/predictions`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token || "guest"}`,
+      "X-Guest-ID": guestId,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ symptoms }),
+  });
+  return response.json();
+};
+
+export const generateDietPlanForReport = async (
+  reportId: number,
+  token: string,
+  symptoms: string[] = [],
+  language: "en" | "hi" = "en"
+) => {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  const guestId = localStorage.getItem("guest_id") || `guest-${crypto.randomUUID()}`;
+  localStorage.setItem("guest_id", guestId);
+  const response = await fetch(`${API_URL}/api/reports/${reportId}/diet-plan`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token || "guest"}`,
+      "X-Guest-ID": guestId,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ symptoms, language }),
+  });
+  return response.json();
+};
+
+export const shareReport = async (reportId: number, token: string) => {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  const guestId = localStorage.getItem("guest_id") || `guest-${crypto.randomUUID()}`;
+  localStorage.setItem("guest_id", guestId);
+  const response = await fetch(`${API_URL}/api/reports/${reportId}/share`, {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${token || "guest"}`,
+      "X-Guest-ID": guestId,
+    },
+  });
+  return response.json();
+};
+
+export const exportReportPdf = async (reportId: number, token: string, language: "en" | "hi" = "en") => {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  const guestId = localStorage.getItem("guest_id") || `guest-${crypto.randomUUID()}`;
+  localStorage.setItem("guest_id", guestId);
+  const response = await fetch(`${API_URL}/api/reports/${reportId}/export-pdf?language=${language}`, {
+    headers: { "Authorization": `Bearer ${token || "guest"}`, "X-Guest-ID": guestId },
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || `Failed to export report (HTTP ${response.status})`);
+  }
+  return response.blob();
 };
 
 // ============ SYMPTOMS & PREDICTIONS ENDPOINTS ============

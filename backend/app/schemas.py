@@ -75,7 +75,10 @@ class DashboardResponse(BaseModel):
     diabetesRisk: int
     heartDiseaseRisk: int
     trends: List[dict]
+    metricTrends: Optional[dict] = None
     alerts: List[dict]
+    doctorSummary: Optional[str] = None
+    healthTrendMessage: Optional[str] = None
 
 class HealthDataResponse(BaseModel):
     data: dict

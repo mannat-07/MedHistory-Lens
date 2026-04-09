@@ -1,27 +1,21 @@
 import { useNavigate } from "react-router";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, CartesianGrid } from "recharts";
-import { AlertCircle, TrendingUp, Sparkles, Stethoscope, UtensilsCrossed, Upload } from "lucide-react";
+import { AlertCircle, TrendingUp, Sparkles, Stethoscope, Upload } from "lucide-react";
 import { DashboardLayout } from "./DashboardLayout";
 import { useState, useEffect } from "react";
 import { useDashboard } from "../../hooks/useData";
+import { DoctorSummary } from "./DoctorSummary";
+import { TrendsChart } from "./TrendsChart";
 
 export function NewDashboard() {
   const navigate = useNavigate();
   const { data, isLoading, error, refetch } = useDashboard();
-  const [showDietPlan, setShowDietPlan] = useState(false);
   const [checked, setChecked] = useState(false);
 
-  // Check on mount if user has reports and refetch if new upload
+  // Refetch if new upload happened recently
   useEffect(() => {
-    const checkReports = async () => {
+    const checkReports = () => {
       try {
-        const hasReports = localStorage.getItem("has_reports") === "true";
-        if (!hasReports) {
-          navigate("/upload-report", { replace: true });
-          return;
-        }
-
-        // Check if data was just uploaded and refetch
         const refreshTrigger = localStorage.getItem("data_refresh_trigger");
         if (refreshTrigger) {
           const uploadTime = parseInt(refreshTrigger);
@@ -41,7 +35,7 @@ export function NewDashboard() {
       setChecked(true);
     };
     checkReports();
-  }, [navigate, refetch]);
+  }, [refetch]);
 
   // Show loading until we've checked for reports
   if (!checked || isLoading) {
@@ -128,9 +122,26 @@ export function NewDashboard() {
           </div>
         </div>
 
-        <div className="flex items-start gap-[8px] p-[12px] bg-[#FEE2E2] rounded-[8px]">
-          <AlertCircle className="w-[14px] h-[14px] text-[#991B1B] mt-[2px] flex-shrink-0" strokeWidth={1.5} />
-          <p className="text-[13px] text-[#991B1B]">Sugar levels increasing over time. Consider lifestyle adjustments.</p>
+        {data.alerts.length === 0 ? (
+          <div className="text-[13px] text-[#6B6B6B]">No flagged insights yet. Upload a report to generate them.</div>
+        ) : (
+          <div className="flex items-start gap-[8px] p-[12px] bg-[#FEE2E2] rounded-[8px]">
+            <AlertCircle className="w-[14px] h-[14px] text-[#991B1B] mt-[2px] flex-shrink-0" strokeWidth={1.5} />
+            <p className="text-[13px] text-[#991B1B]">
+              {data.alerts[0].name}: {data.alerts[0].value} (ref {data.alerts[0].range})
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="mb-[24px]">
+        <DoctorSummary summary={data.doctorSummary} />
+      </div>
+
+      <div className="bg-[#EFF6FF] border border-[#BFDBFE] rounded-[12px] p-[16px] mb-[24px]">
+        <div className="text-[13px] text-[#1D4ED8] font-medium">Health Trend</div>
+        <div className="text-[14px] text-[#1E3A8A] mt-[4px]">
+          {data.healthTrendMessage || "Upload more reports to unlock trend guidance."}
         </div>
       </div>
 
@@ -150,19 +161,20 @@ export function NewDashboard() {
         </button>
 
         <button
-          onClick={() => setShowDietPlan(true)}
+          onClick={() => navigate("/reports")}
           className="bg-white border border-[#E5E5E5] rounded-[12px] p-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:border-[#1A6BFA] hover:shadow-[0_4px_12px_rgba(26,107,250,0.15)] transition-all flex items-center gap-[12px]"
         >
           <div className="w-[40px] h-[40px] bg-[#EFF6FF] rounded-[8px] flex items-center justify-center flex-shrink-0">
-            <UtensilsCrossed className="w-[20px] h-[20px] text-[#1A6BFA]" strokeWidth={1.5} />
+            <Upload className="w-[20px] h-[20px] text-[#1A6BFA]" strokeWidth={1.5} />
           </div>
           <div className="text-left">
-            <div className="text-[15px] font-semibold text-[#111111]">Get Diet Plan</div>
-            <div className="text-[12px] text-[#6B6B6B]">Personalized recommendations</div>
+            <div className="text-[15px] font-semibold text-[#111111]">Open My Reports</div>
+            <div className="text-[12px] text-[#6B6B6B]">Listen and view personalized plan</div>
           </div>
         </button>
 
         <button
+          onClick={() => navigate("/upload-report")}
           className="bg-white border border-[#E5E5E5] rounded-[12px] p-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.06)] hover:border-[#1A6BFA] hover:shadow-[0_4px_12px_rgba(26,107,250,0.15)] transition-all flex items-center gap-[12px]"
         >
           <div className="w-[40px] h-[40px] bg-[#EFF6FF] rounded-[8px] flex items-center justify-center flex-shrink-0">
@@ -215,6 +227,14 @@ export function NewDashboard() {
         </ResponsiveContainer>
       </div>
 
+      <div className="mb-[32px]">
+        <TrendsChart
+          glucose={data.metricTrends?.glucose || []}
+          cholesterol={data.metricTrends?.cholesterol || []}
+          hba1c={data.metricTrends?.hba1c || []}
+        />
+      </div>
+
       {/* Flagged items */}
       <div className="bg-white border border-[#E5E5E5] rounded-[12px] p-[24px] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
         <div className="flex items-center gap-[8px] mb-[24px]">
@@ -251,101 +271,6 @@ export function NewDashboard() {
         </div>
       </div>
 
-      {/* Diet Plan Modal */}
-      {showDietPlan && (
-        <div
-          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-          onClick={() => setShowDietPlan(false)}
-        >
-          <div
-            className="bg-white rounded-[16px] w-[600px] max-h-[80vh] overflow-y-auto shadow-[0_20px_40px_rgba(0,0,0,0.2)]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="sticky top-0 bg-white border-b border-[#E5E5E5] p-[24px] rounded-t-[16px]">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-[8px]">
-                  <UtensilsCrossed className="w-[20px] h-[20px] text-[#1A6BFA]" strokeWidth={1.5} />
-                  <h2 className="text-[18px] font-semibold text-[#111111]">Personalized Diet Plan</h2>
-                </div>
-                <button
-                  onClick={() => setShowDietPlan(false)}
-                  className="w-[32px] h-[32px] rounded-full hover:bg-[#F5F5F4] flex items-center justify-center transition-colors"
-                >
-                  <span className="text-[20px] text-[#6B6B6B]">×</span>
-                </button>
-              </div>
-            </div>
-
-            <div className="p-[24px]">
-              {/* Alert */}
-              <div className="flex items-start gap-[8px] p-[16px] bg-[#EFF6FF] rounded-[8px] mb-[24px]">
-                <Sparkles className="w-[14px] h-[14px] text-[#1A6BFA] mt-[2px] flex-shrink-0" strokeWidth={1.5} />
-                <p className="text-[13px] text-[#1A6BFA]">
-                  Based on your current health metrics, this plan helps manage blood sugar and cholesterol levels.
-                </p>
-              </div>
-
-              {/* Meals */}
-              <div className="space-y-[24px]">
-                <div>
-                  <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em] mb-[12px]">BREAKFAST</div>
-                  <div className="p-[16px] bg-[#F9F9F8] rounded-[8px] space-y-[8px]">
-                    <p className="text-[14px] text-[#111111]">• Oatmeal with berries and nuts</p>
-                    <p className="text-[14px] text-[#111111]">• Boiled eggs (2 whites)</p>
-                    <p className="text-[14px] text-[#111111]">• Green tea or black coffee</p>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em] mb-[12px]">LUNCH</div>
-                  <div className="p-[16px] bg-[#F9F9F8] rounded-[8px] space-y-[8px]">
-                    <p className="text-[14px] text-[#111111]">• Grilled chicken or fish</p>
-                    <p className="text-[14px] text-[#111111]">• Quinoa or brown rice (1 cup)</p>
-                    <p className="text-[14px] text-[#111111]">• Mixed vegetables salad</p>
-                    <p className="text-[14px] text-[#111111]">• Olive oil dressing</p>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em] mb-[12px]">DINNER</div>
-                  <div className="p-[16px] bg-[#F9F9F8] rounded-[8px] space-y-[8px]">
-                    <p className="text-[14px] text-[#111111]">• Vegetable soup</p>
-                    <p className="text-[14px] text-[#111111]">• Grilled tofu or lean meat</p>
-                    <p className="text-[14px] text-[#111111]">• Steamed broccoli and spinach</p>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em] mb-[12px]">FOODS TO AVOID</div>
-                  <div className="p-[16px] bg-[#FEE2E2] rounded-[8px] space-y-[8px]">
-                    <p className="text-[14px] text-[#991B1B]">• Refined sugar and sweets</p>
-                    <p className="text-[14px] text-[#991B1B]">• Fried and processed foods</p>
-                    <p className="text-[14px] text-[#991B1B]">• White bread and pasta</p>
-                    <p className="text-[14px] text-[#991B1B]">• Sugary beverages</p>
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em] mb-[12px]">RECOMMENDATIONS</div>
-                  <div className="p-[16px] bg-[#ECFDF5] rounded-[8px] space-y-[8px]">
-                    <p className="text-[14px] text-[#065F46]">• Drink 8-10 glasses of water daily</p>
-                    <p className="text-[14px] text-[#065F46]">• Exercise 30 minutes per day</p>
-                    <p className="text-[14px] text-[#065F46]">• Eat small meals every 3-4 hours</p>
-                    <p className="text-[14px] text-[#065F46]">• Monitor portion sizes</p>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setShowDietPlan(false)}
-                className="w-full mt-[24px] bg-[#1A6BFA] text-white py-[12px] px-[24px] rounded-[8px] text-[15px] font-semibold hover:bg-[#1557D0] transition-colors"
-              >
-                Got it
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </DashboardLayout>
   );
 }

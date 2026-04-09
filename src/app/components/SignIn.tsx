@@ -5,7 +5,7 @@ import { AlertCircle } from "lucide-react";
 
 export function SignIn() {
   const navigate = useNavigate();
-  const { login, isLoading, error, clearError } = useAuth();
+  const { login, continueAsGuest, isLoading, error, clearError } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [localError, setLocalError] = useState("");
@@ -129,6 +129,18 @@ export function SignIn() {
             <path d="M9 3.57955C10.3214 3.57955 11.5077 4.03364 12.4405 4.92545L15.0218 2.34409C13.4632 0.891818 11.4259 0 9 0C5.48182 0 2.43818 2.01682 0.957275 4.95818L3.96409 7.29C4.67182 5.16273 6.65591 3.57955 9 3.57955Z" fill="#EA4335"/>
           </svg>
           Continue with Google
+        </button>
+
+        <button
+          type="button"
+          disabled={isLoading}
+          onClick={() => {
+            continueAsGuest();
+            navigate("/dashboard");
+          }}
+          className="w-full mt-[12px] h-[44px] border border-[#1A6BFA] text-[#1A6BFA] text-[15px] font-medium rounded-[8px] hover:bg-[#EFF6FF] transition-colors disabled:opacity-50"
+        >
+          Continue as Guest
         </button>
 
         {/* Sign up link */}

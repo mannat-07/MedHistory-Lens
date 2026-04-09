@@ -1,6 +1,6 @@
 import { useNavigate, useLocation } from "react-router";
-import { Bell, ChevronDown, MessageSquare } from "lucide-react";
-import { ReactNode } from "react";
+import { ChevronDown, MessageSquare } from "lucide-react";
+import { ReactNode, useEffect, useMemo, useState } from "react";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -10,6 +10,28 @@ interface DashboardLayoutProps {
 export function DashboardLayout({ children, breadcrumb }: DashboardLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const [profileName, setProfileName] = useState("John Doe");
+
+  useEffect(() => {
+    const existing = localStorage.getItem("profile_name");
+    if (existing && existing.trim()) setProfileName(existing);
+  }, []);
+
+  const initials = useMemo(() => {
+    const parts = profileName.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return "JD";
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }, [profileName]);
+
+  const editProfile = () => {
+    const next = window.prompt("Edit profile name", profileName);
+    if (next && next.trim()) {
+      const clean = next.trim();
+      setProfileName(clean);
+      localStorage.setItem("profile_name", clean);
+    }
+  };
 
   const navItems = [
     { id: "dashboard", label: "Dashboard", path: "/dashboard" },
@@ -37,15 +59,13 @@ export function DashboardLayout({ children, breadcrumb }: DashboardLayoutProps) 
           Dashboard › {breadcrumb || "My Dashboard"}
         </div>
 
-        {/* Right: Notification + Avatar */}
+        {/* Right: Avatar */}
         <div className="flex items-center gap-[16px]">
-          <button className="w-[40px] h-[40px] rounded-full hover:bg-[#F5F5F4] flex items-center justify-center transition-colors">
-            <Bell className="w-[20px] h-[20px] text-[#6B6B6B]" strokeWidth={1.5} />
-          </button>
-          <button className="flex items-center gap-[8px] hover:bg-[#F5F5F4] rounded-[8px] px-[8px] py-[4px] transition-colors">
+          <button onClick={editProfile} className="flex items-center gap-[8px] hover:bg-[#F5F5F4] rounded-[8px] px-[8px] py-[4px] transition-colors">
             <div className="w-[32px] h-[32px] rounded-full bg-[#1A6BFA] flex items-center justify-center">
-              <span className="text-[13px] font-semibold text-white">JD</span>
+              <span className="text-[13px] font-semibold text-white">{initials}</span>
             </div>
+            <span className="text-[13px] text-[#111111]">{profileName}</span>
             <ChevronDown className="w-[16px] h-[16px] text-[#6B6B6B]" strokeWidth={1.5} />
           </button>
         </div>
@@ -57,10 +77,12 @@ export function DashboardLayout({ children, breadcrumb }: DashboardLayoutProps) 
           {/* Patient info */}
           <div className="p-[24px] pb-[16px]">
             <div className="w-12 h-12 rounded-full bg-[#F0F0EF] flex items-center justify-center mb-3">
-              <span className="text-[15px] font-semibold text-[#111111]">JD</span>
+              <span className="text-[15px] font-semibold text-[#111111]">{initials}</span>
             </div>
+            <div className="text-[14px] font-medium text-[#111111] mb-2">{profileName}</div>
             <div className="text-[12px] text-[#6B6B6B] tracking-[0.04em]">REPORT DATE</div>
             <div className="text-[13px] text-[#111111] font-medium">March 15, 2026</div>
+            <button onClick={editProfile} className="mt-3 text-[12px] text-[#1A6BFA] hover:underline">Edit Profile</button>
           </div>
 
           {/* Main navigation */}

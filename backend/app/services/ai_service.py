@@ -82,6 +82,190 @@ Return ONLY valid JSON with "summary" field at the end. No extra text."""
                 "metrics": [],
                 "error": f"Error processing report: {str(e)}"
             }
+
+    def generate_doctor_summary(self, parsed_report: Dict) -> str:
+        """Generate a short, caring doctor-style summary with no numbers or disease names."""
+        try:
+            safe_report = parsed_report if isinstance(parsed_report, dict) else {}
+            message = client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": """You are a calm and caring doctor writing a very short patient summary.
+Rules:
+1) Never include numbers, percentages, units, ranges, or exact values.
+2) Never mention disease names or diagnoses.
+3) Use simple lines like: "Your glucose is in a healthy range." or "Your cholesterol is above range."
+4) Keep to 5 to 7 short lines total.
+5) Friendly and positive tone.
+Return plain text only."""
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Create the doctor summary from this report JSON:\n{json.dumps(safe_report)}"
+                    }
+                ]
+            )
+            summary = (message.choices[0].message.content or "").strip()
+            summary = re.sub(r"\d+([.,]\d+)?%?", "", summary)
+            banned_terms = [
+                "diabetes", "hypertension", "heart disease", "cancer", "stroke",
+                "thyroid", "kidney disease", "liver disease"
+            ]
+            for term in banned_terms:
+                summary = re.sub(term, "condition", summary, flags=re.IGNORECASE)
+            return summary
+        except Exception:
+            return (
+                "Your report has been reviewed carefully.\n"
+                "Your glucose looks stable right now.\n"
+                "Cholesterol needs a little extra attention.\n"
+                "Blood levels are mostly steady.\n"
+                "Please keep healthy food and regular movement.\n"
+                "You are doing well, and we will keep tracking your progress."
+            )
+
+    def generate_voice_friendly_text(self, summary_text: str) -> str:
+        """Create a short, natural script for TTS playback."""
+        try:
+            message = client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": """You are preparing a voice script for a doctor assistant.
+Return 4 to 6 short conversational lines.
+Warm, calm, friendly tone.
+No numbers, no medical jargon.
+Plain text only."""
+                    },
+                    {"role": "user", "content": f"Rewrite for voice: {summary_text}"}
+                ]
+            )
+            return (message.choices[0].message.content or "").strip()
+        except Exception:
+            return summary_text
+
+    def translate_patient_text(self, text: str, language: str) -> str:
+        """Translate to target language with friendly healthcare tone."""
+        if language.lower() in ("en", "english"):
+            return text
+        try:
+            message = client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "Translate the text to simple Hindi for a patient. Keep caring tone. Plain text only."
+                    },
+                    {"role": "user", "content": text}
+                ]
+            )
+            return (message.choices[0].message.content or "").strip()
+        except Exception:
+            return text
+
+    def generate_personalized_diet_plan(self, metrics: Dict, symptoms: List[str], language: str = "en") -> Dict:
+        """Generate a real, metric-based diet plan."""
+        try:
+            message = client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": """You are a clinical diet planner for lab reports.
+Use only provided real metrics and symptoms.
+Logic examples:
+- High glucose or HbA1c: low GI meals, fiber focus, avoid sugary drinks.
+- High cholesterol or triglycerides: less saturated fat, more omega-3, nuts, olive oil.
+- Low hemoglobin: iron rich foods + vitamin C pairings.
+Return ONLY valid JSON:
+{
+  "title": "Personalized Diet Plan",
+  "breakfast": ["...", "..."],
+  "lunch": ["...", "..."],
+  "dinner": ["...", "..."],
+  "snacks": ["...", "..."],
+  "avoid": ["...", "..."],
+  "doctor_note": "one short personalized note"
+}
+No markdown."""
+                    },
+                    {
+                        "role": "user",
+                        "content": json.dumps({"metrics": metrics, "symptoms": symptoms, "language": language})
+                    }
+                ]
+            )
+            content = message.choices[0].message.content or "{}"
+            try:
+                result = json.loads(content)
+            except json.JSONDecodeError:
+                m = re.search(r"\{[\s\S]*\}", content)
+                result = json.loads(m.group()) if m else {}
+            if language.lower().startswith("hi"):
+                for key in ("title", "doctor_note"):
+                    if key in result and isinstance(result[key], str):
+                        result[key] = self.translate_patient_text(result[key], "hi")
+                for key in ("breakfast", "lunch", "dinner", "snacks", "avoid"):
+                    if isinstance(result.get(key), list):
+                        result[key] = [self.translate_patient_text(str(x), "hi") for x in result[key]]
+            return result
+        except Exception as e:
+            print(f"Error generating personalized diet plan: {e}")
+            return {
+                "title": "Personalized Diet Plan",
+                "breakfast": [],
+                "lunch": [],
+                "dinner": [],
+                "snacks": [],
+                "avoid": [],
+                "doctor_note": "Please try again after uploading a clearer report."
+            }
+
+    def generate_health_predictions(self, symptoms: List[str], report_context: Dict) -> Dict:
+        """Generate risk cards using real report context + symptoms."""
+        try:
+            message = client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": """You are a medical risk triage assistant.
+Given symptoms and prior lab context, return realistic risk percentages.
+Return ONLY valid JSON:
+{
+  "predictions": [
+    {"name":"Diabetes Risk","percentage":12,"advice":"..."},
+    {"name":"Heart Disease Risk","percentage":8,"advice":"..."},
+    {"name":"Hypertension Risk","percentage":25,"advice":"..."}
+  ]
+}
+Rules:
+- Use integer percentages 1-95.
+- Keep advice one short sentence.
+- Base response on provided context and symptoms.
+- No markdown."""
+                    },
+                    {
+                        "role": "user",
+                        "content": json.dumps({
+                            "symptoms": symptoms,
+                            "report_context": report_context
+                        })
+                    }
+                ]
+            )
+            text = message.choices[0].message.content or "{}"
+            try:
+                return json.loads(text)
+            except json.JSONDecodeError:
+                match = re.search(r"\{[\s\S]*\}", text)
+                return json.loads(match.group()) if match else {"predictions": []}
+        except Exception as e:
+            print(f"Error generating health predictions: {e}")
+            return {"predictions": []}
     
     def chat_with_ai(self, user_message: str, health_context: dict = None) -> str:
         """

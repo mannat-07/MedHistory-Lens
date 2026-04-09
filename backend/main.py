@@ -39,10 +39,14 @@ async def add_user_id(request, call_next):
     # Fall back to X-User-ID header if Bearer token didn't work
     if not user_id:
         user_id = request.headers.get("X-User-ID")
+
+    guest_id = request.headers.get("X-Guest-ID")
     
     # Set user_id in request state
     if user_id:
         request.state.user_id = user_id
+    if guest_id:
+        request.state.guest_id = guest_id
     
     response = await call_next(request)
     return response
@@ -58,9 +62,9 @@ async def startup_event():
     """Initialize database tables on application startup"""
     try:
         init_db()
-        print("✓ Database initialized successfully")
+        print("Database initialized successfully")
     except Exception as e:
-        print(f"✗ Database initialization error: {e}")
+        print(f"Database initialization error: {e}")
 
 # Root endpoint
 @app.get("/")

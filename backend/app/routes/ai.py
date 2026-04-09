@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request, UploadFile, File
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from app.database import get_db
@@ -7,10 +8,18 @@ from app.schemas import PredictionRequest, ChatMessageCreate, ChatReplyResponse
 from app.services.ai_service import ai_service
 from app.services.health_service import health_service
 from datetime import date
+from pathlib import Path
+from uuid import uuid4
 import json
 import re
+import os
+import tempfile
+from app.auth import get_current_user_optional
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
 
 router = APIRouter(prefix="/api", tags=["ai"])
+Report = MedicalReport
 
 def get_user_id_from_request(request: Request) -> int:
     """Extract user_id from request state"""
@@ -22,10 +31,88 @@ def get_user_id_from_request(request: Request) -> int:
         )
     return int(user_id)
 
+
+def get_actor_context(request: Request, current_user):
+    if current_user:
+        return int(current_user.id), None
+    guest_id = request.headers.get("X-Guest-ID") or (request.state.guest_id if hasattr(request.state, "guest_id") else None)
+    if not guest_id:
+        guest_id = "guest"
+    return 0, guest_id
+
+
+def _get_reports_for_actor(db: Session, user_id: int, guest_id: str):
+    query = db.query(MedicalReport)
+    if user_id:
+        query = query.filter(MedicalReport.user_id == user_id)
+    else:
+        query = query.filter(MedicalReport.guest_id == guest_id)
+    return query.order_by(desc(MedicalReport.created_at)).all()
+
+
+def _extract_key_metrics(parsed_data: dict) -> dict:
+    metrics = parsed_data.get("metrics", []) if isinstance(parsed_data, dict) else []
+    out = {}
+    for m in metrics:
+        if not isinstance(m, dict):
+            continue
+        name = str(m.get("test_name", "")).lower()
+        val = m.get("value")
+        if val is None:
+            continue
+        if "glucose" in name:
+            out["glucose"] = val
+        elif "hba1c" in name:
+            out["hba1c"] = val
+        elif "cholesterol" in name and "hdl" not in name and "ldl" not in name:
+            out["total_cholesterol"] = val
+        elif "triglyceride" in name:
+            out["triglycerides"] = val
+        elif "hemoglobin" in name and "a1c" not in name:
+            out["hemoglobin"] = val
+    return out
+
+
+def _get_report_title(parsed_data: dict, report_id: int) -> str:
+    """Create a readable report title from parsed metrics/category data."""
+    if not isinstance(parsed_data, dict):
+        return f"Medical Report #{report_id}"
+
+    patient = parsed_data.get("patient", {}) if isinstance(parsed_data.get("patient"), dict) else {}
+    explicit_title = patient.get("report_title")
+    if explicit_title and str(explicit_title).strip():
+        return str(explicit_title).strip()
+
+    metrics = parsed_data.get("metrics", []) if isinstance(parsed_data.get("metrics"), list) else []
+    categories = {str(m.get("category", "")).strip().lower() for m in metrics if isinstance(m, dict)}
+
+    if any("complete blood count" in c or "cbc" in c for c in categories):
+        return "Complete Blood Count (CBC)"
+    if any("lipid" in c for c in categories):
+        return "Lipid Panel & Cholesterol"
+    if any("organ" in c or "blood chemistry" in c for c in categories):
+        return "Comprehensive Metabolic Panel"
+    if any("vitamin" in c or "mineral" in c for c in categories):
+        return "Vitamin & Mineral Analysis"
+
+    if metrics and isinstance(metrics[0], dict):
+        first_metric = str(metrics[0].get("test_name", "")).strip()
+        if first_metric:
+            return f"{first_metric} Report"
+
+    return f"Medical Report #{report_id}"
+
+
+def _get_reports_directory() -> Path:
+    """Resolve and create storage directory for uploaded report PDFs."""
+    backend_root = Path(__file__).resolve().parents[2]
+    reports_dir = backend_root / "uploads" / "reports"
+    reports_dir.mkdir(parents=True, exist_ok=True)
+    return reports_dir
+
 @router.post("/predictions")
-def analyze_symptoms(request: PredictionRequest, user_id: int = Depends(get_user_id_from_request),
-                     db: Session = Depends(get_db)):
-    """Analyze symptoms and predict potential diseases"""
+def analyze_symptoms(request: PredictionRequest, req: Request, db: Session = Depends(get_db), current_user=Depends(get_current_user_optional)):
+    """Analyze symptoms and predict potential risks using reports + symptoms."""
     
     if not request.symptoms or len(request.symptoms) == 0:
         raise HTTPException(
@@ -33,21 +120,35 @@ def analyze_symptoms(request: PredictionRequest, user_id: int = Depends(get_user
             detail="At least one symptom is required"
         )
     
-    # Analyze symptoms using AI service
-    predictions = ai_service.analyze_symptoms(request.symptoms)
+    user_id, guest_id = get_actor_context(req, current_user)
+    reports = _get_reports_for_actor(db, user_id, guest_id)
+    latest_report = reports[0] if reports else None
+    latest_reports = []
+    if latest_report:
+        latest_reports.append({
+            "id": latest_report.id,
+            "date": latest_report.upload_date.isoformat() if latest_report.upload_date else None,
+            "doctor_summary": latest_report.doctor_summary,
+            "metrics": (latest_report.parsed_data or {}).get("metrics", []) if isinstance(latest_report.parsed_data, dict) else [],
+            "key_metrics": _extract_key_metrics(latest_report.parsed_data if isinstance(latest_report.parsed_data, dict) else {})
+        })
+    predictions = ai_service.generate_health_predictions(
+        request.symptoms,
+        {"reports": latest_reports}
+    )
     
     # Store in database for audit
     prediction_record = Prediction(
-        user_id=user_id,
+        user_id=user_id or 0,
         symptoms=request.symptoms,
         prediction_date=date.today(),
-        diseases=predictions
+        diseases=predictions.get("predictions", [])
     )
     db.add(prediction_record)
     db.commit()
     
     return {
-        "diseases": predictions
+        "predictions": predictions.get("predictions", [])
     }
 
 @router.post("/chat")
@@ -174,9 +275,71 @@ def get_diet_plan(user_id: int = None, db: Session = Depends(get_db)):
     
     return diet_plan
 
+@router.get("/reports")
+def get_reports(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user_optional)
+):
+    """Get all uploaded reports for the current user or guest."""
+    user_id, guest_id = get_actor_context(request, current_user)
+    query = db.query(MedicalReport)
+    if user_id:
+        query = query.filter(MedicalReport.user_id == user_id)
+    else:
+        query = query.filter(MedicalReport.guest_id == guest_id)
+    reports = query.order_by(desc(MedicalReport.created_at)).all()
+
+    response = []
+    for report in reports:
+        parsed_data = report.parsed_data if isinstance(report.parsed_data, dict) else {}
+        patient = parsed_data.get("patient", {}) if isinstance(parsed_data, dict) else {}
+        metrics = parsed_data.get("metrics", []) if isinstance(parsed_data, dict) else []
+
+        report_title = _get_report_title(parsed_data, report.id)
+        doctor = patient.get("doctor") or "Dr. [Pending]"
+        status_value = "reviewed" if metrics else "pending"
+
+        response.append({
+            "id": report.id,
+            "date": report.upload_date.isoformat() if report.upload_date else None,
+            "title": report_title,
+            "doctor": doctor,
+            "status": status_value,
+            "summary": parsed_data.get("summary") if isinstance(parsed_data, dict) else None,
+            "doctor_summary": report.doctor_summary,
+            "doctor_advice": report.doctor_advice,
+            "voice_text": report.doctor_summary,
+            "key_metrics": _extract_key_metrics(parsed_data),
+            "can_download": bool(report.file_path or report.file_url)
+        })
+
+    return {
+        "success": True,
+        "reports": response
+    }
+
+
+@router.get("/reports/{report_id}/download")
+async def download_report(report_id: int, request: Request, db: Session = Depends(get_db), current_user=Depends(get_current_user_optional)):
+    report = db.query(Report).filter(Report.id == report_id).first()
+    if not report or not (report.file_path or report.file_url) or not os.path.exists(report.file_path or report.file_url):
+        raise HTTPException(404, "Report not found")
+
+    # Owner/guest authorization check
+    if current_user:
+        if report.user_id != int(current_user.id):
+            raise HTTPException(status_code=403, detail="Not authorized to access this report")
+    else:
+        guest_id = request.headers.get("X-Guest-ID") or "guest"
+        if report.guest_id != guest_id:
+            raise HTTPException(status_code=403, detail="Not authorized to access this report")
+    return FileResponse(report.file_path or report.file_url, filename=f"Lab_Report_{report_id}.pdf", media_type="application/pdf")
+
 @router.post("/reports/upload")
-async def upload_report(file: UploadFile = File(...), 
-                       user_id: int = Depends(get_user_id_from_request),
+async def upload_report(request: Request,
+                       file: UploadFile = File(...), 
+                       current_user=Depends(get_current_user_optional),
                        db: Session = Depends(get_db)):
     """Upload and analyze a medical report (PDF)"""
     
@@ -190,6 +353,14 @@ async def upload_report(file: UploadFile = File(...),
     try:
         # Read file contents
         contents = await file.read()
+
+        # Persist original PDF for later download.
+        reports_dir = _get_reports_directory()
+        user_id, guest_id = get_actor_context(request, current_user)
+        actor_prefix = f"user{user_id}" if user_id else f"guest_{guest_id}"
+        file_name = f"{actor_prefix}_{uuid4().hex}.pdf"
+        file_path = reports_dir / file_name
+        file_path.write_bytes(contents)
         
         # Extract text with PyMuPDF
         import fitz
@@ -204,8 +375,13 @@ async def upload_report(file: UploadFile = File(...),
         # Save report to DB
         report = MedicalReport(
             user_id=user_id,
+            guest_id=guest_id,
+            file_url=str(file_path),
+            file_path=str(file_path),
             raw_text=text,
             parsed_data=result,
+            doctor_summary=ai_service.generate_doctor_summary(result),
+            doctor_advice="Keep consistent routines and review your next report for steady progress.",
             report_type="lab",
             upload_date=date.today()
         )
@@ -322,6 +498,7 @@ async def upload_report(file: UploadFile = File(...),
             if metrics_dict:
                 health_metric = HealthMetric(
                     user_id=user_id,
+                    guest_id=guest_id,
                     test_date=date.today(),
                     **metrics_dict
                 )
@@ -336,7 +513,8 @@ async def upload_report(file: UploadFile = File(...),
         return {
             "success": True,
             "report_id": report.id,
-            "report_title": result.get("patient", {}).get("report_title", "New Report"),
+            "report_title": _get_report_title(result, report.id),
+            "doctor_summary": report.doctor_summary,
             "data": result
         }
     
@@ -348,8 +526,8 @@ async def upload_report(file: UploadFile = File(...),
         )
 
 @router.put("/reports/{report_id}")
-async def update_report(report_id: int, file: UploadFile = File(...), 
-                       user_id: int = Depends(get_user_id_from_request),
+async def update_report(report_id: int, request: Request, file: UploadFile = File(...), 
+                       current_user=Depends(get_current_user_optional),
                        db: Session = Depends(get_db)):
     """Update an existing medical report with a new PDF"""
     
@@ -361,11 +539,13 @@ async def update_report(report_id: int, file: UploadFile = File(...),
         )
     
     try:
-        # Check if report exists and belongs to user
-        report = db.query(MedicalReport).filter(
-            MedicalReport.id == report_id,
-            MedicalReport.user_id == user_id
-        ).first()
+        user_id, guest_id = get_actor_context(request, current_user)
+        base_query = db.query(MedicalReport).filter(MedicalReport.id == report_id)
+        if user_id:
+            base_query = base_query.filter(MedicalReport.user_id == user_id)
+        else:
+            base_query = base_query.filter(MedicalReport.guest_id == guest_id)
+        report = base_query.first()
         
         if not report:
             raise HTTPException(
@@ -375,6 +555,18 @@ async def update_report(report_id: int, file: UploadFile = File(...),
         
         # Read file contents
         contents = await file.read()
+
+        # Overwrite existing file or create a new one for this report.
+        if report.file_url:
+            file_path = Path(report.file_url)
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+        else:
+            reports_dir = _get_reports_directory()
+            actor_prefix = f"user{user_id}" if user_id else f"guest_{guest_id}"
+            file_path = reports_dir / f"{actor_prefix}_{uuid4().hex}.pdf"
+            report.file_url = str(file_path)
+            report.file_path = str(file_path)
+        file_path.write_bytes(contents)
         
         # Extract text with PyMuPDF
         import fitz
@@ -389,6 +581,8 @@ async def update_report(report_id: int, file: UploadFile = File(...),
         # Update report
         report.raw_text = text
         report.parsed_data = result
+        report.doctor_summary = ai_service.generate_doctor_summary(result)
+        report.doctor_advice = "Stay consistent with healthy habits and keep monitoring trends."
         report.upload_date = date.today()
         db.commit()
         db.refresh(report)
@@ -480,7 +674,9 @@ async def update_report(report_id: int, file: UploadFile = File(...),
             "success": True,
             "message": "Report updated successfully",
             "report_id": report.id,
-            "new_metrics_count": len(result.get("metrics", []))
+            "doctor_summary": report.doctor_summary,
+            "new_metrics_count": len(result.get("metrics", [])),
+            "data": result
         }
     
     except HTTPException:
@@ -491,3 +687,105 @@ async def update_report(report_id: int, file: UploadFile = File(...),
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error updating PDF: {str(e)}"
         )
+
+
+@router.post("/reports/{report_id}/diet-plan")
+def generate_report_diet_plan(report_id: int, request: Request, payload: dict = None, db: Session = Depends(get_db), current_user=Depends(get_current_user_optional)):
+    user_id, guest_id = get_actor_context(request, current_user)
+    query = db.query(MedicalReport).filter(MedicalReport.id == report_id)
+    query = query.filter(MedicalReport.user_id == user_id) if user_id else query.filter(MedicalReport.guest_id == guest_id)
+    report = query.first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    parsed_data = report.parsed_data if isinstance(report.parsed_data, dict) else {}
+    metrics = _extract_key_metrics(parsed_data)
+    symptoms = payload.get("symptoms", []) if isinstance(payload, dict) else []
+    language = payload.get("language", "en") if isinstance(payload, dict) else "en"
+    plan = ai_service.generate_personalized_diet_plan(metrics=metrics, symptoms=symptoms, language=language)
+    report.diet_plan_cache = plan
+    db.commit()
+    return {"success": True, "diet_plan": plan, "metrics_used": metrics}
+
+
+@router.post("/reports/{report_id}/share")
+def create_share_link(report_id: int, request: Request, db: Session = Depends(get_db), current_user=Depends(get_current_user_optional)):
+    user_id, guest_id = get_actor_context(request, current_user)
+    query = db.query(MedicalReport).filter(MedicalReport.id == report_id)
+    query = query.filter(MedicalReport.user_id == user_id) if user_id else query.filter(MedicalReport.guest_id == guest_id)
+    report = query.first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+    if not report.share_token:
+        report.share_token = uuid4().hex
+        db.commit()
+        db.refresh(report)
+    return {"success": True, "share_url": f"/api/public/reports/{report.share_token}"}
+
+
+@router.get("/public/reports/{share_token}")
+def get_public_report(share_token: str, language: str = "en", db: Session = Depends(get_db)):
+    report = db.query(MedicalReport).filter(MedicalReport.share_token == share_token).first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Shared report not found")
+    summary = report.doctor_summary or ""
+    if language.lower().startswith("hi"):
+        summary = ai_service.translate_patient_text(summary, "hi")
+    return {
+        "title": f"Shared Report #{report.id}",
+        "doctor_summary": summary,
+        "doctor_advice": report.doctor_advice,
+        "diet_plan": report.diet_plan_cache or {},
+        "key_metrics": _extract_key_metrics(report.parsed_data if isinstance(report.parsed_data, dict) else {})
+    }
+
+
+@router.get("/reports/{report_id}/export-pdf")
+def export_report_pdf(report_id: int, request: Request, language: str = "en", db: Session = Depends(get_db), current_user=Depends(get_current_user_optional)):
+    user_id, guest_id = get_actor_context(request, current_user)
+    query = db.query(MedicalReport).filter(MedicalReport.id == report_id)
+    query = query.filter(MedicalReport.user_id == user_id) if user_id else query.filter(MedicalReport.guest_id == guest_id)
+    report = query.first()
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    summary = report.doctor_summary or ""
+    if language.lower().startswith("hi"):
+        summary = ai_service.translate_patient_text(summary, "hi")
+    metrics = _extract_key_metrics(report.parsed_data if isinstance(report.parsed_data, dict) else {})
+    diet = report.diet_plan_cache or {}
+
+    fd, tmp_path = tempfile.mkstemp(suffix=".pdf")
+    os.close(fd)
+    c = canvas.Canvas(tmp_path, pagesize=A4)
+    y = 800
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(40, y, f"MedHistory Lens - Full Report #{report.id}")
+    y -= 30
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(40, y, "Doctor Summary")
+    y -= 20
+    c.setFont("Helvetica", 10)
+    for line in (summary or "No summary").splitlines():
+        c.drawString(40, y, line[:110])
+        y -= 14
+    y -= 8
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(40, y, "Key Metrics")
+    y -= 18
+    c.setFont("Helvetica", 10)
+    for k, v in metrics.items():
+        c.drawString(40, y, f"- {k}: {v}")
+        y -= 14
+    y -= 8
+    c.setFont("Helvetica-Bold", 12)
+    c.drawString(40, y, "Personalized Diet Plan")
+    y -= 18
+    c.setFont("Helvetica", 10)
+    for sec in ("breakfast", "lunch", "dinner", "snacks", "avoid"):
+        items = diet.get(sec, [])
+        if items:
+            c.drawString(40, y, f"{sec.title()}: {', '.join([str(i) for i in items])[:100]}")
+            y -= 14
+    c.drawString(40, y, f"Doctor Voice Note: {ai_service.generate_voice_friendly_text(summary)[:100]}")
+    c.save()
+    return FileResponse(tmp_path, filename=f"MedHistory_Report_{report_id}.pdf", media_type="application/pdf")

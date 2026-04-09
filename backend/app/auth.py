@@ -3,7 +3,13 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
 from app.config import settings
-import hashlib
+from fastapi import Depends
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app.models import User
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login", auto_error=False)
 
 # Password hashing context - using argon2 instead of bcrypt to avoid version issues
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
@@ -42,4 +48,25 @@ def decode_access_token(token: str) -> dict:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
         return payload
     except JWTError:
+        return None
+
+
+def get_current_user_optional(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    if not token or token == "guest":
+        return None
+
+    payload = decode_access_token(token)
+    if not payload:
+        return None
+
+    user_id = payload.get("sub")
+    if not user_id:
+        return None
+
+    try:
+        return db.query(User).filter(User.id == int(user_id)).first()
+    except (TypeError, ValueError):
         return None

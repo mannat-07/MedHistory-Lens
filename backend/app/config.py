@@ -6,8 +6,8 @@ import os
 load_dotenv()
 
 class Settings(BaseSettings):
-    # Database - Default to SQLite for local dev, use PostgreSQL if specified
-    database_url: str = os.getenv("DATABASE_URL", "sqlite:///./medhistory.db")
+    # Database URL from environment (cloud/local)
+    database_url: str = os.getenv("DATABASE_URL")
     
     # Security
     secret_key: str = os.getenv("SECRET_KEY", "your-super-secret-key-change-this-in-production")

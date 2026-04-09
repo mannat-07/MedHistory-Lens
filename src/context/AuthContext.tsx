@@ -15,6 +15,7 @@ interface AuthContextType {
   error: string | null;
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, password: string, name: string) => Promise<void>;
+  continueAsGuest: () => void;
   logout: () => void;
   clearError: () => void;
 }
@@ -95,6 +96,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
   }, []);
 
+  const continueAsGuest = useCallback(() => {
+    apiClient.setAuthToken("guest");
+    setUser(null);
+    setError(null);
+  }, []);
+
   const clearError = useCallback(() => {
     setError(null);
   }, []);
@@ -106,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     error,
     login,
     register,
+    continueAsGuest,
     logout,
     clearError,
   };
