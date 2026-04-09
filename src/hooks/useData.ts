@@ -27,7 +27,7 @@ export function useDashboard(): UseDashboardState {
     try {
       setIsLoading(true);
       setError(null);
-      const response = await apiClient.get<DashboardData>("/dashboard");
+      const response = await apiClient.get<DashboardData>("/health/dashboard");
       setData(response);
     } catch (err) {
       const apiError = err as ApiError;

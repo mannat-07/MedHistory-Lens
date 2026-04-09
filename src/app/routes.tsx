@@ -13,6 +13,7 @@ import { OrganSugarLevels } from "./components/OrganSugarLevels";
 import { Vitamins } from "./components/Vitamins";
 import { BiomarkerDetail } from "./components/BiomarkerDetail";
 import { NewAiChat } from "./components/NewAiChat";
+import { UploadReport } from "./components/UploadReport";
 
 export const router = createBrowserRouter([
   {
@@ -30,6 +31,10 @@ export const router = createBrowserRouter([
   {
     path: "/processing",
     Component: Processing,
+  },
+  {
+    path: "/upload-report",
+    Component: UploadReport,
   },
   {
     path: "/dashboard",

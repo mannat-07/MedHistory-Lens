@@ -1,30 +1,53 @@
 import { DashboardLayout } from "./DashboardLayout";
 import { AlertCircle } from "lucide-react";
-
-const metrics = [
-  { label: "RBC", value: "4.5", unit: "M/μL", status: "normal", range: "4.5-5.5" },
-  { label: "WBC", value: "8.2", unit: "K/μL", status: "normal", range: "4.5-11.0" },
-  { label: "Hemoglobin", value: "13.8", unit: "g/dL", status: "normal", range: "13.5-17.5" },
-  { label: "Platelets", value: "245", unit: "K/μL", status: "normal", range: "150-400" },
-];
-
-const referenceData = [
-  { label: "RBC", value: 4.5, min: 4.5, max: 5.5, percentage: 50 },
-  { label: "WBC", value: 8.2, min: 4.5, max: 11.0, percentage: 57 },
-  { label: "Hemoglobin", value: 13.8, min: 13.5, max: 17.5, percentage: 7.5 },
-  { label: "Platelets", value: 245, min: 150, max: 400, percentage: 38 },
-];
-
-const flaggedItems = [
-  {
-    name: "Neutrophils",
-    value: "72%",
-    range: "40-70%",
-    status: "warning",
-  },
-];
+import { useHealthData } from "../../hooks/useData";
 
 export function BloodCount() {
+  const { data, isLoading, error } = useHealthData("blood");
+
+  if (isLoading) {
+    return (
+      <DashboardLayout breadcrumb="Blood Count">
+        <div className="flex items-center justify-center h-[400px]">
+          <div className="text-[16px] text-[#6B6B6B]">Loading blood metrics...</div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <DashboardLayout breadcrumb="Blood Count">
+        <div className="flex items-center justify-center h-[400px]">
+          <div className="flex items-start gap-[8px] p-[16px] bg-[#FEE2E2] rounded-[8px] max-w-[400px]">
+            <AlertCircle className="w-[14px] h-[14px] text-[#991B1B] mt-[2px] flex-shrink-0" strokeWidth={1.5} />
+            <p className="text-[13px] text-[#991B1B]">
+              Failed to load blood metrics. Please try again.
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const bloodData = data.bloodCounts || {};
+  
+  const metrics = [
+    { label: "RBC", value: bloodData.rbc?.toFixed(1) || "N/A", unit: "M/μL", status: "normal", range: "4.5-5.5" },
+    { label: "WBC", value: bloodData.wbc?.toFixed(1) || "N/A", unit: "K/μL", status: "normal", range: "4.5-11.0" },
+    { label: "Hemoglobin", value: bloodData.hemoglobin?.toFixed(1) || "N/A", unit: "g/dL", status: "normal", range: "13.5-17.5" },
+    { label: "Platelets", value: bloodData.platelets?.toFixed(0) || "N/A", unit: "K/μL", status: "normal", range: "150-400" },
+  ];
+
+  const referenceData = [
+    { label: "RBC", value: bloodData.rbc || 0, min: 4.5, max: 5.5, percentage: Math.min(100, ((bloodData.rbc || 4.5) / 5.5) * 100) },
+    { label: "WBC", value: bloodData.wbc || 0, min: 4.5, max: 11.0, percentage: Math.min(100, ((bloodData.wbc || 8) / 11) * 100) },
+    { label: "Hemoglobin", value: bloodData.hemoglobin || 0, min: 13.5, max: 17.5, percentage: Math.min(100, ((bloodData.hemoglobin || 14) / 17.5) * 100) },
+    { label: "Platelets", value: bloodData.platelets || 0, min: 150, max: 400, percentage: Math.min(100, ((bloodData.platelets || 245) / 400) * 100) },
+  ];
+
+  const flaggedItems = data.trends?.filter((item: any) => item.status === "warning") || [];
+
   return (
     <DashboardLayout breadcrumb="Blood Count">
       {/* Page title */}
@@ -80,7 +103,7 @@ export function BloodCount() {
                 />
               </div>
               <div className="text-[12px] text-[#6B6B6B] mt-[4px]">
-                Current: {item.value}
+                Current: {item.value.toFixed(1)}
               </div>
             </div>
           ))}
@@ -95,21 +118,21 @@ export function BloodCount() {
             <h2 className="text-[15px] font-semibold text-[#111111]">Flagged Items</h2>
           </div>
           <div className="space-y-[12px]">
-            {flaggedItems.map((item, index) => (
+            {flaggedItems.map((item: any, index: number) => (
               <div
                 key={index}
                 className="flex items-center justify-between p-[16px] border border-[#E5E5E5] rounded-[8px]"
               >
                 <div className="text-left">
-                  <div className="text-[14px] font-medium text-[#111111]">{item.name}</div>
+                  <div className="text-[14px] font-medium text-[#111111]">{item.name || 'Item'}</div>
                   <div className="text-[12px] text-[#6B6B6B]">
-                    Reference: {item.range}
+                    {item.range || 'Range: N/A'}
                   </div>
                 </div>
                 <div className="flex items-center gap-[12px]">
-                  <div className="text-[15px] font-semibold text-[#111111]">{item.value}</div>
+                  <div className="text-[15px] font-semibold text-[#111111]">{item.value || 'N/A'}</div>
                   <span className="px-[12px] py-[4px] rounded-[8px] text-[11px] font-medium tracking-[0.04em] bg-[#FEF3C7] text-[#92400E]">
-                    ELEVATED
+                    {item.status?.toUpperCase() || 'STATUS'}
                   </span>
                 </div>
               </div>

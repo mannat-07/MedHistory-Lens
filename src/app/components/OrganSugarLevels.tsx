@@ -1,37 +1,84 @@
 import { DashboardLayout } from "./DashboardLayout";
 import { AlertCircle } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, CartesianGrid } from "recharts";
-
-const metrics = [
-  { label: "Glucose", value: "110", unit: "mg/dL", status: "warning", range: "70-100" },
-  { label: "HbA1c", value: "6.8", unit: "%", status: "warning", range: "4.0-5.6" },
-  { label: "Creatinine", value: "1.0", unit: "mg/dL", status: "normal", range: "0.7-1.3" },
-  { label: "ALT", value: "28", unit: "U/L", status: "normal", range: "7-56" },
-];
-
-const glucoseTrendData = [
-  { date: "Dec", value: 95 },
-  { date: "Jan", value: 98 },
-  { date: "Feb", value: 105 },
-  { date: "Mar", value: 110 },
-];
-
-const flaggedItems = [
-  {
-    name: "HbA1c",
-    value: "6.8%",
-    range: "4.0-5.6%",
-    status: "warning",
-  },
-  {
-    name: "Glucose",
-    value: "110 mg/dL",
-    range: "70-100 mg/dL",
-    status: "warning",
-  },
-];
+import { useHealthData } from "../../hooks/useData";
 
 export function OrganSugarLevels() {
+  const { data, isLoading, error } = useHealthData("organs");
+
+  if (isLoading) {
+    return (
+      <DashboardLayout breadcrumb="Organ & Sugar Levels">
+        <div className="flex items-center justify-center h-[400px]">
+          <div className="text-[16px] text-[#6B6B6B]">Loading organ metrics...</div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <DashboardLayout breadcrumb="Organ & Sugar Levels">
+        <div className="flex items-center justify-center h-[400px]">
+          <div className="flex items-start gap-[8px] p-[16px] bg-[#FEE2E2] rounded-[8px] max-w-[400px]">
+            <AlertCircle className="w-[14px] h-[14px] text-[#991B1B] mt-[2px] flex-shrink-0" strokeWidth={1.5} />
+            <p className="text-[13px] text-[#991B1B]">
+              Failed to load organ metrics. Please try again.
+            </p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  const organData = data.organs || {};
+  
+  const metrics = [
+    { label: "Glucose", value: organData.glucose?.toFixed(0) || "N/A", unit: "mg/dL", status: (organData.glucose || 0) > 100 ? "warning" : "normal", range: "70-100" },
+    { label: "HbA1c", value: organData.hba1c?.toFixed(1) || "N/A", unit: "%", status: (organData.hba1c || 0) > 5.6 ? "warning" : "normal", range: "4.0-5.6" },
+    { label: "Creatinine", value: organData.creatinine?.toFixed(1) || "N/A", unit: "mg/dL", status: "normal", range: "0.7-1.3" },
+    { label: "ALT", value: organData.alt?.toFixed(0) || "N/A", unit: "U/L", status: "normal", range: "7-56" },
+  ];
+
+  const glucoseTrendData = data.trends?.slice(-4) || [
+    { date: "N/A", value: organData.glucose || 100 },
+  ];
+
+  const hba1c = organData.hba1c || 6.8;
+  
+  let diabetesStatus = "Normal";
+  let diabetesStatusColor = "#16A34A";
+  let diabetesDescription = "Your HbA1c is in the normal range. Keep maintaining healthy habits.";
+  
+  if (hba1c < 5.7) {
+    diabetesStatus = "Normal";
+    diabetesStatusColor = "#16A34A";
+    diabetesDescription = "Your HbA1c is in the normal range. Keep maintaining healthy habits.";
+  } else if (hba1c < 6.5) {
+    diabetesStatus = "Pre-diabetic range";
+    diabetesStatusColor = "#D97706";
+    diabetesDescription = "Your HbA1c is in the pre-diabetic range (5.7-6.4%). This indicates an increased risk of developing type 2 diabetes. Lifestyle modifications are recommended.";
+  } else {
+    diabetesStatus = "Diabetic range";
+    diabetesStatusColor = "#DC2626";
+    diabetesDescription = "Your HbA1c is in the diabetic range (≥6.5%). Please consult with your healthcare provider for appropriate management.";
+  }
+
+  const flaggedItems = [
+    ...(organData.hba1c && organData.hba1c > 5.6 ? [{
+      name: "HbA1c",
+      value: `${organData.hba1c.toFixed(1)}%`,
+      range: "4.0-5.6%",
+      status: "warning",
+    }] : []),
+    ...(organData.glucose && organData.glucose > 100 ? [{
+      name: "Glucose",
+      value: `${organData.glucose.toFixed(0)} mg/dL`,
+      range: "70-100 mg/dL",
+      status: "warning",
+    }] : []),
+  ];
+
   return (
     <DashboardLayout breadcrumb="Organ & Sugar Levels">
       {/* Page title */}
@@ -67,7 +114,7 @@ export function OrganSugarLevels() {
       {/* Glucose Trend */}
       <div className="bg-white border border-[#E5E5E5] rounded-[12px] p-[24px] shadow-[0_1px_3px_rgba(0,0,0,0.06)] mb-[32px]">
         <h2 className="text-[15px] font-semibold text-[#111111] mb-[24px]">
-          Glucose Trend (Last 4 visits)
+          Glucose Trend
         </h2>
         <ResponsiveContainer width="100%" height={220}>
           <LineChart data={glucoseTrendData}>
@@ -79,7 +126,7 @@ export function OrganSugarLevels() {
               tick={{ fill: "#6B6B6B", fontSize: 12 }}
             />
             <YAxis
-              domain={[80, 120]}
+              domain={[70, 150]}
               axisLine={false}
               tickLine={false}
               tick={{ fill: "#6B6B6B", fontSize: 12 }}
@@ -103,7 +150,7 @@ export function OrganSugarLevels() {
         <div className="flex items-center gap-[24px]">
           <div className="text-center">
             <div className="text-[32px] font-semibold text-[#D97706] mb-[8px]">
-              6.8%
+              {hba1c.toFixed(1)}%
             </div>
             <div className="text-[13px] text-[#6B6B6B]">HbA1c Level</div>
           </div>
@@ -112,12 +159,11 @@ export function OrganSugarLevels() {
               <span
                 className="px-[16px] py-[8px] rounded-[8px] text-[14px] font-medium bg-[#FEF3C7] text-[#92400E]"
               >
-                Pre-diabetic range
+                {diabetesStatus}
               </span>
             </div>
             <div className="text-[13px] text-[#6B6B6B] leading-relaxed">
-              Your HbA1c is in the pre-diabetic range (5.7-6.4%). This indicates an increased risk
-              of developing type 2 diabetes. Lifestyle modifications are recommended.
+              {diabetesDescription}
             </div>
           </div>
         </div>
@@ -143,33 +189,35 @@ export function OrganSugarLevels() {
       </div>
 
       {/* Flagged section */}
-      <div className="bg-white border border-[#E5E5E5] rounded-[12px] p-[24px] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-        <div className="flex items-center gap-[8px] mb-[24px]">
-          <AlertCircle className="w-[16px] h-[16px] text-[#DC2626]" strokeWidth={1.5} />
-          <h2 className="text-[15px] font-semibold text-[#111111]">Flagged Items</h2>
-        </div>
-        <div className="space-y-[12px]">
-          {flaggedItems.map((item, index) => (
-            <div
-              key={index}
-              className="flex items-center justify-between p-[16px] border border-[#E5E5E5] rounded-[8px]"
-            >
-              <div className="text-left">
-                <div className="text-[14px] font-medium text-[#111111]">{item.name}</div>
-                <div className="text-[12px] text-[#6B6B6B]">
-                  Reference: {item.range}
+      {flaggedItems.length > 0 && (
+        <div className="bg-white border border-[#E5E5E5] rounded-[12px] p-[24px] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
+          <div className="flex items-center gap-[8px] mb-[24px]">
+            <AlertCircle className="w-[16px] h-[16px] text-[#DC2626]" strokeWidth={1.5} />
+            <h2 className="text-[15px] font-semibold text-[#111111]">Flagged Items</h2>
+          </div>
+          <div className="space-y-[12px]">
+            {flaggedItems.map((item, index) => (
+              <div
+                key={index}
+                className="flex items-center justify-between p-[16px] border border-[#E5E5E5] rounded-[8px]"
+              >
+                <div className="text-left">
+                  <div className="text-[14px] font-medium text-[#111111]">{item.name}</div>
+                  <div className="text-[12px] text-[#6B6B6B]">
+                    Reference: {item.range}
+                  </div>
+                </div>
+                <div className="flex items-center gap-[12px]">
+                  <div className="text-[15px] font-semibold text-[#111111]">{item.value}</div>
+                  <span className="px-[12px] py-[4px] rounded-[8px] text-[11px] font-medium tracking-[0.04em] bg-[#FEF3C7] text-[#92400E]">
+                    ELEVATED
+                  </span>
                 </div>
               </div>
-              <div className="flex items-center gap-[12px]">
-                <div className="text-[15px] font-semibold text-[#111111]">{item.value}</div>
-                <span className="px-[12px] py-[4px] rounded-[8px] text-[11px] font-medium tracking-[0.04em] bg-[#FEF3C7] text-[#92400E]">
-                  ELEVATED
-                </span>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </DashboardLayout>
   );
 }

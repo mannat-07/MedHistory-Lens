@@ -14,8 +14,11 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     
+    # Groq AI
+    groq_api_key: Optional[str] = os.getenv("GROQ_API_KEY", None)
+    
     # AI
-    ai_model_name: str = os.getenv("AI_MODEL_NAME", "none")
+    ai_model_name: str = os.getenv("AI_MODEL_NAME", "llama-3.3-70b-versatile")
     use_local_ai: bool = os.getenv("USE_LOCAL_AI", "false").lower() == "true"
     debug: bool = os.getenv("DEBUG", "false").lower() == "true"
     huggingface_api_key: Optional[str] = None
@@ -23,7 +26,6 @@ class Settings(BaseSettings):
     # API
     api_host: str = "0.0.0.0"
     api_port: int = 8000
-    debug: bool = False
     
     class Config:
         env_file = ".env"

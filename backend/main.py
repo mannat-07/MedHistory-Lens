@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from app.config import settings
 from app.database import init_db
 from app.routes import auth, health, ai
+from app.auth import decode_access_token
 
 # Create FastAPI app (don't call init_db() on import - do it on startup instead)
 app = FastAPI(
@@ -25,11 +26,23 @@ app.add_middleware(
 @app.middleware("http")
 async def add_user_id(request, call_next):
     """Extract user_id from Bearer token and add to request state"""
+    user_id = None
     auth_header = request.headers.get("Authorization", "")
     
-    # For now, accept X-User-ID header (in production, decode JWT)
-    user_id = request.headers.get("X-User-ID")
-    request.state.user_id = user_id
+    # Try to extract from Bearer token first
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+        payload = decode_access_token(token)
+        if payload:
+            user_id = payload.get("sub")
+    
+    # Fall back to X-User-ID header if Bearer token didn't work
+    if not user_id:
+        user_id = request.headers.get("X-User-ID")
+    
+    # Set user_id in request state
+    if user_id:
+        request.state.user_id = user_id
     
     response = await call_next(request)
     return response

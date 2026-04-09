@@ -82,4 +82,6 @@ class MedicalReport(Base):
     file_url = Column(String(500))
     upload_date = Column(Date, nullable=False)
     report_type = Column(String(50))  # 'blood_test', 'general', etc
+    raw_text = Column(Text, nullable=True)  # Extracted text from PDF
+    parsed_data = Column(JSON, nullable=True)  # Parsed biomarkers and analysis
     created_at = Column(DateTime(timezone=True), server_default=func.now())

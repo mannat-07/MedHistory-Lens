@@ -52,28 +52,37 @@ def register(user_data: UserRegister, db: Session = Depends(get_db)):
 def login(credentials: UserLogin, db: Session = Depends(get_db)):
     """Login user with email and password"""
     
-    # Find user
-    user = db.query(User).filter(User.email == credentials.email).first()
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+    try:
+        # Find user
+        user = db.query(User).filter(User.email == credentials.email).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password"
+            )
+        
+        # Verify password
+        if not verify_password(credentials.password, user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password"
+            )
+        
+        # Generate token
+        access_token = create_access_token(data={"sub": str(user.id)})
+        
+        return TokenResponse(
+            access_token=access_token,
+            user=UserResponse.from_orm(user)
         )
-    
-    # Verify password
-    if not verify_password(credentials.password, user.password_hash):
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Login error: {e}")
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Login failed: {str(e)}"
         )
-    
-    # Generate token
-    access_token = create_access_token(data={"sub": str(user.id)})
-    
-    return TokenResponse(
-        access_token=access_token,
-        user=UserResponse.from_orm(user)
-    )
 
 @router.get("/me", response_model=UserResponse)
 def get_current_user(request: Request, token: str = Depends(get_token_from_header), db: Session = Depends(get_db)):

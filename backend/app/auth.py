@@ -3,15 +3,16 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
 from app.config import settings
+import hashlib
 
-# Password hashing context
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Password hashing context - using argon2 instead of bcrypt to avoid version issues
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 # ========================
 # Password Functions
 # ========================
 def hash_password(password: str) -> str:
-    """Hash a password for secure storage"""
+    """Hash a password for secure storage using argon2"""
     return pwd_context.hash(password)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:

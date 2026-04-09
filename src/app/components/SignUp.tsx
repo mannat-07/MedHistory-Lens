@@ -55,9 +55,11 @@ export function SignUp() {
     try {
       await register(email, password, name);
       setSuccess(true);
-      // Navigate to dashboard after 1 second
+      // Clear report flag so new users must upload first
+      localStorage.removeItem("has_reports");
+      // Navigate to upload report after 1 second
       setTimeout(() => {
-        navigate("/dashboard");
+        navigate("/upload-report");
       }, 1000);
     } catch (err) {
       setLocalError(error || "Registration failed. Please try again.");

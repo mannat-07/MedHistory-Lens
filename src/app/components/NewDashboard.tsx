@@ -2,15 +2,49 @@ import { useNavigate } from "react-router";
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, CartesianGrid } from "recharts";
 import { AlertCircle, TrendingUp, Sparkles, Stethoscope, UtensilsCrossed, Upload } from "lucide-react";
 import { DashboardLayout } from "./DashboardLayout";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useDashboard } from "../../hooks/useData";
 
 export function NewDashboard() {
   const navigate = useNavigate();
-  const { data, isLoading, error } = useDashboard();
+  const { data, isLoading, error, refetch } = useDashboard();
   const [showDietPlan, setShowDietPlan] = useState(false);
+  const [checked, setChecked] = useState(false);
 
-  if (isLoading) {
+  // Check on mount if user has reports and refetch if new upload
+  useEffect(() => {
+    const checkReports = async () => {
+      try {
+        const hasReports = localStorage.getItem("has_reports") === "true";
+        if (!hasReports) {
+          navigate("/upload-report", { replace: true });
+          return;
+        }
+
+        // Check if data was just uploaded and refetch
+        const refreshTrigger = localStorage.getItem("data_refresh_trigger");
+        if (refreshTrigger) {
+          const uploadTime = parseInt(refreshTrigger);
+          const timeSinceUpload = Date.now() - uploadTime;
+          
+          // If upload was recent (within last 5 seconds), add delay then refetch
+          if (timeSinceUpload < 5000) {
+            setTimeout(() => {
+              console.log("Refetching dashboard after upload...");
+              refetch();
+            }, 1500);
+          }
+        }
+      } catch (err) {
+        console.log("Report check issue, proceeding with dashboard");
+      }
+      setChecked(true);
+    };
+    checkReports();
+  }, [navigate, refetch]);
+
+  // Show loading until we've checked for reports
+  if (!checked || isLoading) {
     return (
       <DashboardLayout breadcrumb="Dashboard">
         <div className="flex items-center justify-center h-[400px]">

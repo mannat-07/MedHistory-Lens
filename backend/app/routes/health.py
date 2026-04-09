@@ -24,10 +24,17 @@ def get_dashboard(user_id: int = Depends(get_user_id_from_request), db: Session 
     
     # Get latest metrics
     latest = health_service.get_latest_metrics(db, user_id)
+    
+    # If no metrics, return empty/default dashboard
     if not latest:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No health metrics found"
+        return DashboardResponse(
+            glucose=None,
+            hba1c=None,
+            cholesterol=None,
+            diabetesRisk=0,
+            heartDiseaseRisk=0,
+            trends=[],
+            alerts=[]
         )
     
     # Get history for trends
@@ -74,48 +81,67 @@ def get_health_data(category: str, user_id: int = Depends(get_user_id_from_reque
     
     # Get latest metrics
     latest = health_service.get_latest_metrics(db, user_id)
+    
+    # Default response structure by category
+    response = {}
+    trend_fields = []
+    
+    # Return default data if no metrics found
     if not latest:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No health metrics found"
-        )
+        if category == "blood":
+            response = {"bloodCounts": {"wbc": None, "rbc": None, "hemoglobin": None, "platelets": None}}
+        elif category == "heart":
+            response = {"heart": {"ldl": None, "hdl": None, "totalCholesterol": None}}
+        elif category == "organs":
+            response = {"organs": {"glucose": None, "creatinine": None, "alt": None}}
+        elif category == "nutrition":
+            response = {"nutrition": {"vitaminD": None, "vitaminB12": None, "iron": None}}
+        
+        response["trends"] = []
+        return response
     
     # Get history for trends
     history = health_service.get_metrics_history(db, user_id, months=3)
     
     # Return data by category
-    category_data = {}
-    
     if category == "blood":
-        category_data = {
-            "wbc": latest.wbc,
-            "rbc": latest.rbc,
-            "hemoglobin": latest.hemoglobin,
-            "platelets": latest.platelets
+        response = {
+            "bloodCounts": {
+                "wbc": latest.wbc,
+                "rbc": latest.rbc,
+                "hemoglobin": latest.hemoglobin,
+                "platelets": latest.platelets
+            }
         }
         trend_fields = ["wbc", "rbc", "hemoglobin", "platelets"]
     
     elif category == "heart":
-        category_data = {
-            "ldl": latest.ldl_cholesterol,
-            "hdl": latest.hdl_cholesterol,
-            "totalCholesterol": latest.total_cholesterol
+        response = {
+            "heart": {
+                "ldl": latest.ldl_cholesterol,
+                "hdl": latest.hdl_cholesterol,
+                "totalCholesterol": latest.total_cholesterol
+            }
         }
         trend_fields = ["ldl_cholesterol", "hdl_cholesterol", "total_cholesterol"]
     
     elif category == "organs":
-        category_data = {
-            "glucose": latest.glucose,
-            "creatinine": latest.creatinine,
-            "alt": latest.alt
+        response = {
+            "organs": {
+                "glucose": latest.glucose,
+                "creatinine": latest.creatinine,
+                "alt": latest.alt
+            }
         }
         trend_fields = ["glucose", "creatinine", "alt"]
     
     elif category == "nutrition":
-        category_data = {
-            "vitaminD": latest.vitamin_d,
-            "vitaminB12": latest.vitamin_b12,
-            "iron": latest.iron
+        response = {
+            "nutrition": {
+                "vitaminD": latest.vitamin_d,
+                "vitaminB12": latest.vitamin_b12,
+                "iron": latest.iron
+            }
         }
         trend_fields = ["vitamin_d", "vitamin_b12", "iron"]
     
@@ -124,10 +150,8 @@ def get_health_data(category: str, user_id: int = Depends(get_user_id_from_reque
     for field in trend_fields:
         trends[field] = health_service.get_trend_data(history, field)
     
-    return {
-        "data": category_data,
-        "trends": trends
-    }
+    response["trends"] = trends
+    return response
 
 @router.post("/metrics", response_model=HealthMetricResponse)
 def create_health_metric(metric_data: HealthMetricCreate, user_id: int = Depends(get_user_id_from_request),
