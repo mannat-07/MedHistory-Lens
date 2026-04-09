@@ -767,3 +767,20 @@ def export_report_pdf(report_id: int, language: str = "en", db: Session = Depend
     c.drawString(40, y, f"Doctor Voice Note: {ai_service.generate_voice_friendly_text(summary)[:100]}")
     c.save()
     return FileResponse(tmp_path, filename=f"MedHistory_Report_{report_id}.pdf", media_type="application/pdf")
+import edge_tts
+from fastapi.responses import FileResponse
+from pydantic import BaseModel
+class TTSRequest(BaseModel):
+    text: str
+
+@router.post('/ai/tts')
+async def generate_tts(body: TTSRequest):
+    if not body.text:
+        raise HTTPException(status_code=400, detail='Text is required')
+    import tempfile, hashlib, os
+    filename = hashlib.md5(body.text.encode('utf-8')).hexdigest() + '.mp3'
+    filepath = os.path.join(tempfile.gettempdir(), filename)
+    if not os.path.exists(filepath):
+        communicate = edge_tts.Communicate(body.text, 'en-US-ChristopherNeural')
+        await communicate.save(filepath)
+    return FileResponse(filepath, media_type='audio/mpeg')

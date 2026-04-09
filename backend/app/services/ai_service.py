@@ -370,7 +370,7 @@ Rules:
                 model=self.model,
                 messages=[{
                     "role": "user",
-                    "content": f"""Based on these health metrics, create a personalized diet plan.
+                    "content": f"""You are a clinical diet planner for lab reports. Based exactly on these health metrics, create a TRULY HIGHLY PERSONALIZED diet plan. If glucose/HbA1c is high, include low-GI meals. If cholesterol is high, avoid saturated fats. If hemoglobin is low, suggest iron-rich foods. ENSURE that meals and snacks are unique. EXPLICITLY reference the health metrics in the recommendations.
                     Return ONLY valid JSON with this format:
                     {{
                       "breakfast": ["meal1", "meal2"],
