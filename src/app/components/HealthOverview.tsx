@@ -64,7 +64,7 @@ export function HealthOverview() {
     return (
       <DashboardLayout breadcrumb="Health Overview">
         <div className="flex items-center justify-center h-[400px]">
-          <div className="text-[16px] text-[#6B6B6B]">Loading health data...</div>
+          <div className="text-[16px] text-[#52525B]">Loading health data...</div>
         </div>
       </DashboardLayout>
     );
@@ -74,9 +74,9 @@ export function HealthOverview() {
     return (
       <DashboardLayout breadcrumb="Health Overview">
         <div className="flex items-center justify-center h-[400px]">
-          <div className="flex items-start gap-[8px] p-[16px] bg-[#FEE2E2] rounded-[8px] max-w-[400px]">
-            <AlertCircle className="w-[14px] h-[14px] text-[#991B1B] mt-[2px] flex-shrink-0" strokeWidth={1.5} />
-            <p className="text-[13px] text-[#991B1B]">
+          <div className="flex items-start gap-[8px] p-[16px] bg-[#FEF2F2] rounded-[8px] max-w-[400px]">
+            <AlertCircle className="w-[14px] h-[14px] text-[#EF4444] mt-[2px] flex-shrink-0" strokeWidth={1.5} />
+            <p className="text-[13px] text-[#EF4444]">
               {error?.message || "Failed to load health data. Please upload a report first."}
             </p>
           </div>
@@ -87,17 +87,17 @@ export function HealthOverview() {
 
   return (
     <DashboardLayout breadcrumb="Health Overview">
-      <div className="flex gap-[8px] mb-[32px] border-b border-[#E5E5E5]">
+      <div className="flex gap-[8px] mb-[32px] border-b border-[#E4E4E7]">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`px-[20px] py-[12px] flex items-center gap-[8px] transition-colors relative ${
+              className={`px-[24px] py-[14px] flex items-center gap-[8px] transition-colors relative ${
                 activeTab === tab.id
                   ? "text-[#4C1D95]"
-                  : "text-[#6B6B6B] hover:text-[#111111]"
+                  : "text-[#52525B] hover:text-[#18181B]"
               }`}
             >
               <Icon className="w-[16px] h-[16px]" strokeWidth={1.5} />
@@ -119,18 +119,18 @@ export function HealthOverview() {
               { label: "HEMOGLOBIN", value: data.bloodCounts.hemoglobin, range: "12-16", unit: "g/dL" },
               { label: "PLATELETS", value: data.bloodCounts.platelets, range: "150-400", unit: "10³/µL" }
             ].map((metric) => (
-              <div key={metric.label} className="bg-white border border-[#E5E5E5] rounded-[16px] p-[20px] shadow-sm">
+              <div key={metric.label} className="bg-white border border-[#E4E4E7] rounded-[20px] p-[20px] shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-[12px]">
-                  <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em] font-semibold">{metric.label}</div>
+                  <div className="text-[13px] text-[#52525B] tracking-[0.04em] font-semibold">{metric.label}</div>
                   <div className="w-2 h-2 rounded-full bg-[#10B981]" />
                 </div>
                 <div className="text-[28px] font-bold text-[#18181B] mb-1">{metric.value ?? "N/A"}</div>
-                <div className="text-[12px] text-[#6B6B6B]">{metric.unit} • Normal: {metric.range}</div>
+                <div className="text-[12px] text-[#52525B]">{metric.unit} • Normal: {metric.range}</div>
               </div>
             ))}
           </div>
 
-          <div className="bg-white border border-[#E5E5E5] rounded-[16px] p-[24px] shadow-sm">
+          <div className="bg-white border border-[#E4E4E7] rounded-[24px] p-[28px] shadow-sm hover:shadow-md transition-shadow">
             <h3 className="text-[18px] font-bold text-[#18181B] mb-[24px]">Blood Cell Trends</h3>
             {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
@@ -161,18 +161,18 @@ export function HealthOverview() {
               { label: "HDL", value: data.heart.hdl, range: "Normal: above 40", dot: "bg-[#10B981]" },
               { label: "TOTAL CHOLESTEROL", value: data.heart.totalCholesterol, range: "Normal: under 200", dot: "bg-[#F59E0B]" }
             ].map((metric) => (
-              <div key={metric.label} className="bg-white border border-[#E5E5E5] rounded-[16px] p-[20px] shadow-sm">
+              <div key={metric.label} className="bg-white border border-[#E4E4E7] rounded-[20px] p-[20px] shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-[12px]">
-                  <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em] font-semibold">{metric.label}</div>
+                  <div className="text-[13px] text-[#52525B] tracking-[0.04em] font-semibold">{metric.label}</div>
                   <div className={`w-2 h-2 rounded-full ${metric.dot}`} />
                 </div>
                 <div className="text-[28px] font-bold text-[#18181B] mb-1">{metric.value ?? "N/A"}</div>
-                <div className="text-[12px] text-[#6B6B6B]">mg/dL • {metric.range}</div>
+                <div className="text-[12px] text-[#52525B]">mg/dL • {metric.range}</div>
               </div>
             ))}
           </div>
 
-          <div className="bg-white border border-[#E5E5E5] rounded-[16px] p-[24px] shadow-sm">
+          <div className="bg-white border border-[#E4E4E7] rounded-[24px] p-[28px] shadow-sm hover:shadow-md transition-shadow">
             <h3 className="text-[18px] font-bold text-[#18181B] mb-[24px]">Cholesterol Trends</h3>
             {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
@@ -202,18 +202,18 @@ export function HealthOverview() {
               { label: "ALT", value: data.organs.alt, range: "Normal: under 40", unit: "U/L", dot: "bg-[#10B981]" },
               { label: "AST", value: data.organs.ast, range: "Normal: under 40", unit: "U/L", dot: "bg-[#10B981]" }
             ].map((metric) => (
-              <div key={metric.label} className="bg-white border border-[#E5E5E5] rounded-[16px] p-[20px] shadow-sm">
+              <div key={metric.label} className="bg-white border border-[#E4E4E7] rounded-[20px] p-[20px] shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-[12px]">
-                  <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em] font-semibold">{metric.label}</div>
+                  <div className="text-[13px] text-[#52525B] tracking-[0.04em] font-semibold">{metric.label}</div>
                   <div className={`w-2 h-2 rounded-full ${metric.dot}`} />
                 </div>
                 <div className="text-[28px] font-bold text-[#18181B] mb-1">{metric.value ?? "N/A"}</div>
-                <div className="text-[12px] text-[#6B6B6B]">{metric.unit} • {metric.range}</div>
+                <div className="text-[12px] text-[#52525B]">{metric.unit} • {metric.range}</div>
               </div>
             ))}
           </div>
 
-          <div className="bg-white border border-[#E5E5E5] rounded-[16px] p-[24px] shadow-sm">
+          <div className="bg-white border border-[#E4E4E7] rounded-[24px] p-[28px] shadow-sm hover:shadow-md transition-shadow">
             <h3 className="text-[18px] font-bold text-[#18181B] mb-[24px]">Organ Health Trends</h3>
             {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>
@@ -244,18 +244,18 @@ export function HealthOverview() {
               { label: "VITAMIN B12", value: data.nutrition.vitaminB12, range: "Normal: above 200", unit: "pg/mL", dot: "bg-[#10B981]" },
               { label: "IRON", value: data.nutrition.iron, range: "Normal: 60-170", unit: "µg/dL", dot: "bg-[#F59E0B]" }
             ].map((metric) => (
-              <div key={metric.label} className="bg-white border border-[#E5E5E5] rounded-[16px] p-[20px] shadow-sm">
+              <div key={metric.label} className="bg-white border border-[#E4E4E7] rounded-[20px] p-[20px] shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-[12px]">
-                  <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em] font-semibold">{metric.label}</div>
+                  <div className="text-[13px] text-[#52525B] tracking-[0.04em] font-semibold">{metric.label}</div>
                   <div className={`w-2 h-2 rounded-full ${metric.dot}`} />
                 </div>
                 <div className="text-[28px] font-bold text-[#18181B] mb-1">{metric.value ?? "N/A"}</div>
-                <div className="text-[12px] text-[#6B6B6B]">{metric.unit} • {metric.range}</div>
+                <div className="text-[12px] text-[#52525B]">{metric.unit} • {metric.range}</div>
               </div>
             ))}
           </div>
 
-          <div className="bg-white border border-[#E5E5E5] rounded-[16px] p-[24px] shadow-sm">
+          <div className="bg-white border border-[#E4E4E7] rounded-[24px] p-[28px] shadow-sm hover:shadow-md transition-shadow">
             <h3 className="text-[18px] font-bold text-[#18181B] mb-[24px]">Nutrition Trends</h3>
             {chartData.length > 0 ? (
               <ResponsiveContainer width="100%" height={300}>

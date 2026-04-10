@@ -108,7 +108,7 @@ export function Landing() {
               <div className="absolute top-14 left-0 w-8 h-16 bg-[#F4F4F5] border-y border-l border-[#E4E4E7] rounded-l-full transform -rotate-[20deg] origin-top-right"></div>
             </div>
           </div>
-          <div className="absolute top-6 right-6 w-[360px] bg-white rounded-2xl p-6 shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-[#E4E4E7] transition-transform duration-700 hover:-translate-y-1">
+          <div className="absolute -top-4 right-6 w-[360px] bg-white rounded-2xl p-6 shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-[#E4E4E7] transition-transform duration-700 hover:-translate-y-1">
             <div className="flex items-center justify-between mb-6">
               <span className="text-sm font-semibold text-[#52525B]">Live Health Snapshot</span>
               <span className="text-xs font-semibold text-[#10B981] bg-[#10B981]/10 px-2.5 py-1 rounded-md">Stable</span>
