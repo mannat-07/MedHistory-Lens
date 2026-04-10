@@ -73,6 +73,7 @@ export interface HealthCategoryData {
     glucose: number;
     creatinine: number;
     alt: number;
+    ast: number;
   };
   nutrition?: {
     vitaminD: number;

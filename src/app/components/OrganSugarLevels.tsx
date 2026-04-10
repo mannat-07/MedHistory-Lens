@@ -31,7 +31,7 @@ export function OrganSugarLevels() {
     );
   }
 
-  const organData = data.organs || {};
+  const organData: any = data.organs || {};
   
   const metrics = [
     { label: "Glucose", value: organData.glucose?.toFixed(0) || "N/A", unit: "mg/dL", status: (organData.glucose || 0) > 100 ? "warning" : "normal", range: "70-100" },

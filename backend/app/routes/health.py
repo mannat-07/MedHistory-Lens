@@ -43,17 +43,24 @@ def get_dashboard(db: Session = Depends(get_db), current_user: User = Depends(ge
         )
     
     # Get history for trends
-    history = _base_metrics_query(db, current_user).order_by(HealthMetric.test_date.asc()).all()
+    history = _base_metrics_query(db, current_user).order_by(HealthMetric.test_date.asc(), HealthMetric.id.asc()).all()
     
-    # Calculate risks
+    def get_latest_val(field):
+        for m in reversed(history):
+            val = getattr(m, field, None)
+            if val is not None:
+                return val
+        return None
+
+    # Calculate risks using latest non-null values
     diabetes_risk = health_service.calculate_diabetes_risk(
-        latest.hba1c,
-        latest.glucose
+        get_latest_val("hba1c"),
+        get_latest_val("glucose")
     )
     heart_risk = health_service.calculate_heart_disease_risk(
-        latest.ldl_cholesterol,
-        latest.hdl_cholesterol,
-        latest.total_cholesterol
+        get_latest_val("ldl_cholesterol"),
+        get_latest_val("hdl_cholesterol"),
+        get_latest_val("total_cholesterol")
     )
     
     # Get trends
@@ -63,10 +70,11 @@ def get_dashboard(db: Session = Depends(get_db), current_user: User = Depends(ge
     alerts = health_service.get_flagged_items(latest)
     health_trend_message = _build_health_trend_message(history)
     
+    latest_hba1c = get_latest_val("hba1c")
     return DashboardResponse(
-        glucose=latest.glucose,
-        hba1c=f"{latest.hba1c}%" if latest.hba1c else None,
-        cholesterol=latest.total_cholesterol,
+        glucose=get_latest_val("glucose"),
+        hba1c=f"{latest_hba1c}%" if latest_hba1c is not None else None,
+        cholesterol=get_latest_val("total_cholesterol"),
         diabetesRisk=diabetes_risk,
         heartDiseaseRisk=heart_risk,
         trends=glucose_trend,
@@ -142,24 +150,26 @@ def get_health_data(category: str, db: Session = Depends(get_db), current_user: 
         elif category == "heart":
             response = {"heart": {"ldl": None, "hdl": None, "totalCholesterol": None}}
         elif category == "organs":
-            response = {"organs": {"glucose": None, "creatinine": None, "alt": None}}
-        elif category == "nutrition":
-            response = {"nutrition": {"vitaminD": None, "vitaminB12": None, "iron": None}}
-        
-        response["trends"] = []
-        return response
-    
+              response = {"organs": {"glucose": None, "creatinine": None, "alt": None, "ast": None}}
     # Get history for trends
-    history = _base_metrics_query(db, current_user).order_by(HealthMetric.test_date.asc()).all()
+    history = _base_metrics_query(db, current_user).order_by(HealthMetric.test_date.asc(), HealthMetric.id.asc()).all()
     
+    def get_latest_val(field):
+        # find the most recent non-null value in history
+        for m in reversed(history):
+            val = getattr(m, field, None)
+            if val is not None:
+                return val
+        return None
+
     # Return data by category
     if category == "blood":
         response = {
             "bloodCounts": {
-                "wbc": latest.wbc,
-                "rbc": latest.rbc,
-                "hemoglobin": latest.hemoglobin,
-                "platelets": latest.platelets
+                "wbc": get_latest_val("wbc"),
+                "rbc": get_latest_val("rbc"),
+                "hemoglobin": get_latest_val("hemoglobin"),
+                "platelets": get_latest_val("platelets")
             }
         }
         trend_fields = ["wbc", "rbc", "hemoglobin", "platelets"]
@@ -167,9 +177,9 @@ def get_health_data(category: str, db: Session = Depends(get_db), current_user: 
     elif category == "heart":
         response = {
             "heart": {
-                "ldl": latest.ldl_cholesterol,
-                "hdl": latest.hdl_cholesterol,
-                "totalCholesterol": latest.total_cholesterol
+                "ldl": get_latest_val("ldl_cholesterol"),
+                "hdl": get_latest_val("hdl_cholesterol"),
+                "totalCholesterol": get_latest_val("total_cholesterol")
             }
         }
         trend_fields = ["ldl_cholesterol", "hdl_cholesterol", "total_cholesterol"]
@@ -177,19 +187,20 @@ def get_health_data(category: str, db: Session = Depends(get_db), current_user: 
     elif category == "organs":
         response = {
             "organs": {
-                "glucose": latest.glucose,
-                "creatinine": latest.creatinine,
-                "alt": latest.alt
+                "glucose": get_latest_val("glucose"),
+                "creatinine": get_latest_val("creatinine"),
+                "alt": get_latest_val("alt"),
+                "ast": get_latest_val("ast")
             }
         }
-        trend_fields = ["glucose", "creatinine", "alt"]
-    
+        trend_fields = ["glucose", "creatinine", "alt", "ast"]
+
     elif category == "nutrition":
         response = {
             "nutrition": {
-                "vitaminD": latest.vitamin_d,
-                "vitaminB12": latest.vitamin_b12,
-                "iron": latest.iron
+                "vitaminD": get_latest_val("vitamin_d"),
+                "vitaminB12": get_latest_val("vitamin_b12"),
+                "iron": get_latest_val("iron")
             }
         }
         trend_fields = ["vitamin_d", "vitamin_b12", "iron"]

@@ -31,7 +31,7 @@ export function HeartCholesterol() {
     );
   }
 
-  const heartData = data.heart || {};
+  const heartData: any = data.heart || {};
   
   const metrics = [
     { label: "Total Cholesterol", value: heartData.totalCholesterol?.toFixed(0) || "N/A", unit: "mg/dL", status: (heartData.totalCholesterol || 0) > 200 ? "warning" : "normal", range: "<200" },

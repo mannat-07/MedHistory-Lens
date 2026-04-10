@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from "react-router";
 import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Activity, ArrowRight } from "lucide-react";
 
 export function SignIn() {
   const navigate = useNavigate();
@@ -31,119 +31,111 @@ export function SignIn() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F9F9F8] flex items-center justify-center px-[24px]">
-      <div className="w-full max-w-[480px] bg-white rounded-[16px] border border-[#E5E5E5] p-[40px] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-        {/* Logo */}
-        <div className="text-center mb-[32px]">
-          <div className="text-[18px] font-semibold text-[#111111] mb-[8px]">
-            MedHistory Lens
-          </div>
-        </div>
+    <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex items-center justify-center p-[24px] relative overflow-hidden selection:bg-[#8B5CF6]/20 selection:text-[#6D28D9]">
+      {/* Soft Decorative Ambient Gradients */}
+      <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] bg-[#8B5CF6]/15 blur-[140px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-[#10B981]/10 blur-[140px] rounded-full pointer-events-none" />
 
-        {/* Heading */}
-        <div className="text-center mb-[32px]">
-          <h1 className="text-[24px] font-semibold text-[#111111] mb-[8px]">
-            Welcome back
+      <div className="w-full max-w-[440px] relative z-10 animate-in fade-in zoom-in-95 duration-700">
+        {/* Brand Header */}
+        <div className="text-center mb-[32px] flex flex-col items-center">
+          <div className="w-[48px] h-[48px] rounded-[14px] bg-gradient-to-br from-[#8B5CF6] to-[#6D28D9] flex items-center justify-center shadow-[0_8px_24px_rgba(109,40,217,0.3)] mb-[16px]">
+            <Activity className="w-[24px] h-[24px] text-white" strokeWidth={2.5} />
+          </div>
+          <h1 className="text-[28px] font-bold tracking-tight text-[#0F172A] mb-[8px]">
+            Welcome Back
           </h1>
-          <p className="text-[14px] text-[#6B6B6B]">
-            Sign in to view your reports
+          <p className="text-[14px] text-[#64748B] font-medium">
+            Sign in to access your intelligence dashboard
           </p>
         </div>
 
-        {/* Error message */}
-        {(error || localError) && (
-          <div className="flex items-start gap-[8px] p-[12px] bg-[#FEE2E2] rounded-[8px] mb-[16px]">
-            <AlertCircle className="w-[14px] h-[14px] text-[#991B1B] mt-[2px] flex-shrink-0" strokeWidth={1.5} />
-            <p className="text-[13px] text-[#991B1B]">{error || localError}</p>
-          </div>
-        )}
+        {/* Card */}
+        <div className="bg-white/80 border border-[#E2E8F0] backdrop-blur-2xl rounded-3xl p-[40px] shadow-[0_8px_32px_rgba(0,0,0,0.06)] relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-[150px] h-[150px] bg-gradient-to-br from-white to-transparent opacity-50 blur-2xl pointer-events-none" />
 
-        {/* Form */}
-        <form onSubmit={handleSignIn} className="space-y-[16px]">
-          {/* Email input */}
-          <div>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                clearError();
-                setLocalError("");
-              }}
-              placeholder="you@email.com"
-              disabled={isLoading}
-              className="w-full h-[44px] px-[16px] bg-white border border-[#E5E5E5] rounded-[8px] text-[15px] text-[#111111] placeholder:text-[#6B6B6B] outline-none focus:border-[#1A6BFA] transition-colors disabled:opacity-50"
-            />
-          </div>
+          {/* Form */}
+          <form onSubmit={handleSignIn} className="space-y-[20px] relative z-10">
+            {/* Error Message */}
+            {(error || localError) && (
+              <div className="flex items-start gap-[10px] p-[16px] bg-[#FEF2F2]/80 border border-[#FCA5A5] backdrop-blur-md rounded-[14px] mb-[8px] animate-in fade-in slide-in-from-top-2">
+                <AlertCircle className="w-[16px] h-[16px] text-[#DC2626] mt-[2px] flex-shrink-0" strokeWidth={2} />
+                <p className="text-[13px] text-[#B91C1C] font-medium leading-relaxed">{error || localError}</p>
+              </div>
+            )}
 
-          {/* Password input */}
-          <div>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                clearError();
-                setLocalError("");
-              }}
-              placeholder="Password"
-              disabled={isLoading}
-              className="w-full h-[44px] px-[16px] bg-white border border-[#E5E5E5] rounded-[8px] text-[15px] text-[#111111] placeholder:text-[#6B6B6B] outline-none focus:border-[#1A6BFA] transition-colors disabled:opacity-50"
-            />
-            <div className="text-right mt-[8px]">
-              <button
-                type="button"
-                className="text-[13px] text-[#1A6BFA] hover:underline"
-              >
-                Forgot password?
-              </button>
+            <div className="space-y-[16px]">
+              {/* Email */}
+              <div className="space-y-[8px]">
+                <label className="text-[13px] font-semibold text-[#475569] uppercase tracking-wider pl-[4px]">Email Address</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    clearError();
+                    setLocalError("");
+                  }}
+                  placeholder="name@company.com"
+                  disabled={isLoading}
+                  className="w-full h-[48px] px-[16px] bg-white border border-[#E2E8F0] rounded-[12px] text-[15px] text-[#0F172A] placeholder:text-[#94A3B8] outline-none focus:border-[#8B5CF6] focus:ring-[3px] focus:ring-[#8B5CF6]/10 transition-all duration-300 shadow-sm disabled:opacity-50"
+                  autoComplete="email"
+                />
+              </div>
+
+              {/* Password */}
+              <div className="space-y-[8px]">
+                <div className="flex justify-between items-center pl-[4px] pr-[4px]">
+                  <label className="text-[13px] font-semibold text-[#475569] uppercase tracking-wider">Password</label>
+                  <a href="#" className="text-[13px] font-semibold text-[#8B5CF6] hover:text-[#6D28D9] transition-colors">Forgot?</a>
+                </div>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    clearError();
+                    setLocalError("");
+                  }}
+                  placeholder="••••••••"
+                  disabled={isLoading}
+                  className="w-full h-[48px] px-[16px] bg-white border border-[#E2E8F0] rounded-[12px] text-[15px] text-[#0F172A] placeholder:text-[#94A3B8] outline-none focus:border-[#8B5CF6] focus:ring-[3px] focus:ring-[#8B5CF6]/10 transition-all duration-300 shadow-sm disabled:opacity-50"
+                  autoComplete="current-password"
+                />
+              </div>
             </div>
+
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="w-full h-[50px] bg-gradient-to-r from-[#8B5CF6] to-[#6D28D9] text-white rounded-[12px] text-[15px] font-semibold hover:shadow-[0_8px_20px_rgba(139,92,246,0.3)] hover:scale-[1.02] transition-all duration-300 flex items-center justify-center gap-[8px] disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-none mt-[8px]"
+            >
+              {isLoading ? (
+                <>
+                  <div className="w-[18px] h-[18px] border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  <span>Authenticating...</span>
+                </>
+              ) : (
+                <>
+                  Sign In
+                  <ArrowRight className="w-[18px] h-[18px]" strokeWidth={2} />
+                </>
+              )}
+            </button>
+          </form>
+
+          {/* Footer Info */}
+          <div className="text-center mt-[32px] pt-[24px] border-t border-[#E2E8F0]">
+            <p className="text-[14px] text-[#64748B]">
+              New to MedHistory?{' '}
+              <button 
+                onClick={() => navigate('/signup')} 
+                className="text-[#8B5CF6] font-semibold hover:text-[#6D28D9] transition-colors"
+              >
+                Create an account
+              </button>
+            </p>
           </div>
-
-          {/* Sign in button */}
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="w-full h-[44px] bg-[#1A6BFA] text-white text-[15px] font-medium rounded-[8px] hover:bg-[#1557CC] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
-
-        {/* Divider */}
-        <div className="flex items-center gap-[16px] my-[24px]">
-          <div className="flex-1 h-[1px] bg-[#E5E5E5]" />
-          <span className="text-[13px] text-[#6B6B6B]">or</span>
-          <div className="flex-1 h-[1px] bg-[#E5E5E5]" />
-        </div>
-
-        {/* Google sign in */}
-        <button
-          type="button"
-          disabled={isLoading}
-          className="w-full h-[44px] border border-[#E5E5E5] text-[#111111] text-[15px] font-medium rounded-[8px] opacity-60 cursor-not-allowed flex items-center justify-center gap-[8px]"
-          title="Not configured for this demo"
-        >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-            <path d="M17.64 9.20454C17.64 8.56636 17.5827 7.95273 17.4764 7.36364H9V10.845H13.8436C13.635 11.97 13.0009 12.9232 12.0477 13.5614V15.8195H14.9564C16.6582 14.2527 17.64 11.9455 17.64 9.20454Z" fill="#4285F4"/>
-            <path d="M9 18C11.43 18 13.4673 17.1941 14.9564 15.8195L12.0477 13.5614C11.2418 14.1014 10.2109 14.4205 9 14.4205C6.65591 14.4205 4.67182 12.8373 3.96409 10.71H0.957275V13.0418C2.43818 15.9832 5.48182 18 9 18Z" fill="#34A853"/>
-            <path d="M3.96409 10.71C3.78409 10.17 3.68182 9.59318 3.68182 9C3.68182 8.40682 3.78409 7.83 3.96409 7.29V4.95818H0.957275C0.347727 6.17318 0 7.54773 0 9C0 10.4523 0.347727 11.8268 0.957275 13.0418L3.96409 10.71Z" fill="#FBBC05"/>
-            <path d="M9 3.57955C10.3214 3.57955 11.5077 4.03364 12.4405 4.92545L15.0218 2.34409C13.4632 0.891818 11.4259 0 9 0C5.48182 0 2.43818 2.01682 0.957275 4.95818L3.96409 7.29C4.67182 5.16273 6.65591 3.57955 9 3.57955Z" fill="#EA4335"/>
-          </svg>
-          Continue with Google
-        </button>
-
-        {/* Sign up link */}
-        <div className="text-center mt-[24px]">
-          <span className="text-[14px] text-[#6B6B6B]">
-            Don't have an account?{" "}
-          </span>
-          <button
-            onClick={() => navigate("/signup")}
-            className="text-[14px] text-[#1A6BFA] hover:underline font-medium"
-          >
-            Sign up
-          </button>
         </div>
       </div>
     </div>

@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { DashboardLayout } from "./DashboardLayout";
 import { Activity, Heart, Droplets, Pill, AlertCircle } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, CartesianGrid } from "recharts";
+import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, CartesianGrid, Tooltip } from "recharts";
 import { useHealthData } from "../../hooks/useData";
 
 export function HealthOverview() {
@@ -23,20 +23,15 @@ export function HealthOverview() {
         const uploadTime = parseInt(refreshTrigger);
         const timeSinceUpload = Date.now() - uploadTime;
         
-        // If upload was recent (within last 10 seconds), refetch with delay
         if (timeSinceUpload < 10000) {
           setTimeout(() => {
-            console.log("Refetching health overview after upload...");
             setRefreshKey(prev => prev + 1);
             refetch();
           }, 2000);
-          
-          // Clear the refresh trigger
           localStorage.removeItem("data_refresh_trigger");
         }
       }
     };
-
     checkForNewUpload();
   }, [refetch]);
 
@@ -47,7 +42,24 @@ export function HealthOverview() {
     { id: "nutrition" as const, label: "Nutrition", icon: Pill },
   ];
 
-  // Loading state
+  // Helper to format trends for recharts
+  const chartData = useMemo(() => {
+    if (!data?.trends || Object.keys(data.trends).length === 0) return [];
+    if (Array.isArray(data.trends)) return data.trends;
+    
+    const merged: Record<string, any> = {};
+    for (const [metric, points] of Object.entries(data.trends)) {
+      if (Array.isArray(points)) {
+        points.forEach((point: any) => {
+          if (!merged[point.date]) merged[point.date] = { date: point.date };
+          merged[point.date][metric] = point.value;
+        });
+      }
+    }
+    
+    return Object.values(merged);
+  }, [data?.trends]);
+
   if (isLoading) {
     return (
       <DashboardLayout breadcrumb="Health Overview">
@@ -58,7 +70,6 @@ export function HealthOverview() {
     );
   }
 
-  // Error state
   if (error || !data) {
     return (
       <DashboardLayout breadcrumb="Health Overview">
@@ -76,7 +87,6 @@ export function HealthOverview() {
 
   return (
     <DashboardLayout breadcrumb="Health Overview">
-      {/* Tabs */}
       <div className="flex gap-[8px] mb-[32px] border-b border-[#E5E5E5]">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -86,178 +96,183 @@ export function HealthOverview() {
               onClick={() => setActiveTab(tab.id)}
               className={`px-[20px] py-[12px] flex items-center gap-[8px] transition-colors relative ${
                 activeTab === tab.id
-                  ? "text-[#1A6BFA]"
+                  ? "text-[#4C1D95]"
                   : "text-[#6B6B6B] hover:text-[#111111]"
               }`}
             >
               <Icon className="w-[16px] h-[16px]" strokeWidth={1.5} />
               <span className="text-[15px] font-medium">{tab.label}</span>
               {activeTab === tab.id && (
-                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#1A6BFA]" />
+                <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#4C1D95]" />
               )}
             </button>
           );
         })}
       </div>
 
-      {/* Blood Tab */}
       {activeTab === "blood" && data?.bloodCounts && (
-        <div className="space-y-[24px]">
-          <div className="grid grid-cols-4 gap-[16px]">
-            <div className="bg-white border border-[#E5E5E5] rounded-[12px] p-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-              <div className="flex items-start justify-between mb-[12px]">
-                <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em]">WBC</div>
-                <div className="w-2 h-2 rounded-full bg-[#10B981]" />
+        <div className="space-y-[24px] animate-in fade-in duration-500">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-[16px]">
+            {[
+              { label: "WBC", value: data.bloodCounts.wbc, range: "4.5-11.0", unit: "10³/µL" },
+              { label: "RBC", value: data.bloodCounts.rbc, range: "4.5-5.5", unit: "10�/µL" },
+              { label: "HEMOGLOBIN", value: data.bloodCounts.hemoglobin, range: "12-16", unit: "g/dL" },
+              { label: "PLATELETS", value: data.bloodCounts.platelets, range: "150-400", unit: "10³/µL" }
+            ].map((metric) => (
+              <div key={metric.label} className="bg-white border border-[#E5E5E5] rounded-[16px] p-[20px] shadow-sm">
+                <div className="flex items-start justify-between mb-[12px]">
+                  <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em] font-semibold">{metric.label}</div>
+                  <div className="w-2 h-2 rounded-full bg-[#10B981]" />
+                </div>
+                <div className="text-[28px] font-bold text-[#18181B] mb-1">{metric.value ?? "N/A"}</div>
+                <div className="text-[12px] text-[#6B6B6B]">{metric.unit} • Normal: {metric.range}</div>
               </div>
-              <div className="text-[24px] font-semibold text-[#111111]">{data.bloodCounts.wbc}</div>
-              <div className="text-[12px] text-[#6B6B6B]">10³/µL • Normal: 4.5-11.0</div>
-            </div>
-
-            <div className="bg-white border border-[#E5E5E5] rounded-[12px] p-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-              <div className="flex items-start justify-between mb-[12px]">
-                <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em]">RBC</div>
-                <div className="w-2 h-2 rounded-full bg-[#10B981]" />
-              </div>
-              <div className="text-[24px] font-semibold text-[#111111]">{data.bloodCounts.rbc}</div>
-              <div className="text-[12px] text-[#6B6B6B]">10⁶/µL • Normal: 4.5-5.5</div>
-            </div>
-
-            <div className="bg-white border border-[#E5E5E5] rounded-[12px] p-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-              <div className="flex items-start justify-between mb-[12px]">
-                <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em]">HEMOGLOBIN</div>
-                <div className="w-2 h-2 rounded-full bg-[#10B981]" />
-              </div>
-              <div className="text-[24px] font-semibold text-[#111111]">{data.bloodCounts.hemoglobin}</div>
-              <div className="text-[12px] text-[#6B6B6B]">g/dL • Normal: 12-16</div>
-            </div>
-
-            <div className="bg-white border border-[#E5E5E5] rounded-[12px] p-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-              <div className="flex items-start justify-between mb-[12px]">
-                <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em]">PLATELETS</div>
-                <div className="w-2 h-2 rounded-full bg-[#10B981]" />
-              </div>
-              <div className="text-[24px] font-semibold text-[#111111]">{data.bloodCounts.platelets}</div>
-              <div className="text-[12px] text-[#6B6B6B]">10³/µL • Normal: 150-400</div>
-            </div>
+            ))}
           </div>
 
-          <div className="bg-white border border-[#E5E5E5] rounded-[12px] p-[24px] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-            <h3 className="text-[15px] font-semibold text-[#111111] mb-[20px]">Blood Cell Trends</h3>
-            {data.trends && data.trends.length > 0 ? (
-              <ResponsiveContainer width="100%" height={250}>
-                <LineChart data={data.trends}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E5E5" />
-                  <XAxis dataKey="date" stroke="#6B6B6B" />
-                  <YAxis stroke="#6B6B6B" />
-                  <Line type="monotone" dataKey="wbc" stroke="#1A6BFA" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="rbc" stroke="#10B981" strokeWidth={2} dot={false} />
+          <div className="bg-white border border-[#E5E5E5] rounded-[16px] p-[24px] shadow-sm">
+            <h3 className="text-[18px] font-bold text-[#18181B] mb-[24px]">Blood Cell Trends</h3>
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F4F4F5" vertical={false} />
+                  <XAxis dataKey="date" stroke="#A1A1AA" tick={{fontSize: 12}} tickLine={false} axisLine={false} dy={10} />
+                  <YAxis yAxisId="left" stroke="#A1A1AA" tick={{fontSize: 12}} tickLine={false} axisLine={false} dx={-10} />
+                  <YAxis yAxisId="right" orientation="right" stroke="#A1A1AA" tick={{fontSize: 12}} tickLine={false} axisLine={false} dx={10} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #E4E4E7', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                  <Line yAxisId="left" type="monotone" name="WBC" dataKey="wbc" stroke="#4C1D95" strokeWidth={3} dot={{r:4, fill: '#4C1D95', strokeWidth: 2, stroke:'#fff'}} activeDot={{r: 6}} />
+                  <Line yAxisId="left" type="monotone" name="RBC" dataKey="rbc" stroke="#10B981" strokeWidth={3} dot={{r:4, fill: '#10B981', strokeWidth: 2, stroke:'#fff'}} activeDot={{r: 6}} />
+                  <Line yAxisId="left" type="monotone" name="Hemoglobin" dataKey="hemoglobin" stroke="#F59E0B" strokeWidth={3} dot={{r:4, fill: '#F59E0B', strokeWidth: 2, stroke:'#fff'}} activeDot={{r: 6}} />
+                  <Line yAxisId="right" type="monotone" name="Platelets" dataKey="platelets" stroke="#EF4444" strokeWidth={3} dot={{r:4, fill: '#EF4444', strokeWidth: 2, stroke:'#fff'}} activeDot={{r: 6}} />
                 </LineChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-[250px] flex items-center justify-center text-[#6B6B6B]">No trend data available</div>
+              <div className="h-[300px] flex items-center justify-center text-[#A1A1AA] bg-[#FAFAF7] rounded-[12px] border border-dashed border-[#E4E4E7]">No trend data available</div>
             )}
           </div>
         </div>
       )}
 
-      {/* Heart Tab */}
       {activeTab === "heart" && data?.heart && (
-        <div className="space-y-[24px]">
-          <div className="grid grid-cols-3 gap-[16px]">
-            <div className="bg-white border border-[#E5E5E5] rounded-[12px] p-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-              <div className="flex items-start justify-between mb-[12px]">
-                <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em]">LDL</div>
-                <div className="w-2 h-2 rounded-full bg-[#EF4444]" />
+        <div className="space-y-[24px] animate-in fade-in duration-500">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-[16px]">
+            {[
+              { label: "LDL", value: data.heart.ldl, range: "Optimal: under 100", dot: "bg-[#EF4444]" },
+              { label: "HDL", value: data.heart.hdl, range: "Normal: above 40", dot: "bg-[#10B981]" },
+              { label: "TOTAL CHOLESTEROL", value: data.heart.totalCholesterol, range: "Normal: under 200", dot: "bg-[#F59E0B]" }
+            ].map((metric) => (
+              <div key={metric.label} className="bg-white border border-[#E5E5E5] rounded-[16px] p-[20px] shadow-sm">
+                <div className="flex items-start justify-between mb-[12px]">
+                  <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em] font-semibold">{metric.label}</div>
+                  <div className={`w-2 h-2 rounded-full ${metric.dot}`} />
+                </div>
+                <div className="text-[28px] font-bold text-[#18181B] mb-1">{metric.value ?? "N/A"}</div>
+                <div className="text-[12px] text-[#6B6B6B]">mg/dL • {metric.range}</div>
               </div>
-              <div className="text-[24px] font-semibold text-[#111111]">{data.heart.ldl}</div>
-              <div className="text-[12px] text-[#6B6B6B]">{"mg/dL • Optimal: under 100"}</div>
-            </div>
+            ))}
+          </div>
 
-            <div className="bg-white border border-[#E5E5E5] rounded-[12px] p-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-              <div className="flex items-start justify-between mb-[12px]">
-                <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em]">HDL</div>
-                <div className="w-2 h-2 rounded-full bg-[#10B981]" />
-              </div>
-              <div className="text-[24px] font-semibold text-[#111111]">{data.heart.hdl}</div>
-              <div className="text-[12px] text-[#6B6B6B]">{"mg/dL • Normal: above 40"}</div>
-            </div>
-
-            <div className="bg-white border border-[#E5E5E5] rounded-[12px] p-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-              <div className="flex items-start justify-between mb-[12px]">
-                <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em]">TOTAL</div>
-                <div className="w-2 h-2 rounded-full bg-[#F59E0B]" />
-              </div>
-              <div className="text-[24px] font-semibold text-[#111111]">{data.heart.totalCholesterol}</div>
-              <div className="text-[12px] text-[#6B6B6B]">{"mg/dL • Normal: under 200"}</div>
-            </div>
+          <div className="bg-white border border-[#E5E5E5] rounded-[16px] p-[24px] shadow-sm">
+            <h3 className="text-[18px] font-bold text-[#18181B] mb-[24px]">Cholesterol Trends</h3>
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F4F4F5" vertical={false} />
+                  <XAxis dataKey="date" stroke="#A1A1AA" tick={{fontSize: 12}} tickLine={false} axisLine={false} dy={10} />
+                  <YAxis stroke="#A1A1AA" tick={{fontSize: 12}} tickLine={false} axisLine={false} dx={-10} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #E4E4E7', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                  <Line type="monotone" name="LDL" dataKey="ldl_cholesterol" stroke="#EF4444" strokeWidth={3} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
+                  <Line type="monotone" name="HDL" dataKey="hdl_cholesterol" stroke="#10B981" strokeWidth={3} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
+                  <Line type="monotone" name="Total" dataKey="total_cholesterol" stroke="#F59E0B" strokeWidth={3} dot={{r: 4, strokeWidth: 2}} activeDot={{r: 6}} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-[#A1A1AA] bg-[#FAFAF7] rounded-[12px] border border-dashed border-[#E4E4E7]">No trend data available</div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Organs Tab */}
       {activeTab === "organs" && data?.organs && (
-        <div className="space-y-[24px]">
-          <div className="grid grid-cols-3 gap-[16px]">
-            <div className="bg-white border border-[#E5E5E5] rounded-[12px] p-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-              <div className="flex items-start justify-between mb-[12px]">
-                <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em]">GLUCOSE</div>
-                <div className="w-2 h-2 rounded-full bg-[#D97706]" />
+        <div className="space-y-[24px] animate-in fade-in duration-500">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-[16px]">
+            {[
+              { label: "GLUCOSE", value: data.organs.glucose, range: "Normal: 70-100", unit: "mg/dL", dot: "bg-[#D97706]" },
+              { label: "CREATININE", value: data.organs.creatinine, range: "Normal: 0.6-1.2", unit: "mg/dL", dot: "bg-[#10B981]" },
+              { label: "ALT", value: data.organs.alt, range: "Normal: under 40", unit: "U/L", dot: "bg-[#10B981]" },
+              { label: "AST", value: data.organs.ast, range: "Normal: under 40", unit: "U/L", dot: "bg-[#10B981]" }
+            ].map((metric) => (
+              <div key={metric.label} className="bg-white border border-[#E5E5E5] rounded-[16px] p-[20px] shadow-sm">
+                <div className="flex items-start justify-between mb-[12px]">
+                  <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em] font-semibold">{metric.label}</div>
+                  <div className={`w-2 h-2 rounded-full ${metric.dot}`} />
+                </div>
+                <div className="text-[28px] font-bold text-[#18181B] mb-1">{metric.value ?? "N/A"}</div>
+                <div className="text-[12px] text-[#6B6B6B]">{metric.unit} • {metric.range}</div>
               </div>
-              <div className="text-[24px] font-semibold text-[#111111]">{data.organs.glucose}</div>
-              <div className="text-[12px] text-[#6B6B6B]">mg/dL • Normal: 70-100</div>
-            </div>
+            ))}
+          </div>
 
-            <div className="bg-white border border-[#E5E5E5] rounded-[12px] p-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-              <div className="flex items-start justify-between mb-[12px]">
-                <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em]">CREATININE</div>
-                <div className="w-2 h-2 rounded-full bg-[#10B981]" />
-              </div>
-              <div className="text-[24px] font-semibold text-[#111111]">{data.organs.creatinine}</div>
-              <div className="text-[12px] text-[#6B6B6B]">mg/dL • Normal: 0.6-1.2</div>
-            </div>
-
-            <div className="bg-white border border-[#E5E5E5] rounded-[12px] p-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-              <div className="flex items-start justify-between mb-[12px]">
-                <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em]">ALT</div>
-                <div className="w-2 h-2 rounded-full bg-[#10B981]" />
-              </div>
-              <div className="text-[24px] font-semibold text-[#111111]">{data.organs.alt}</div>
-              <div className="text-[12px] text-[#6B6B6B]">{"U/L • Normal: under 40"}</div>
-            </div>
+          <div className="bg-white border border-[#E5E5E5] rounded-[16px] p-[24px] shadow-sm">
+            <h3 className="text-[18px] font-bold text-[#18181B] mb-[24px]">Organ Health Trends</h3>
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F4F4F5" vertical={false} />
+                  <XAxis dataKey="date" stroke="#A1A1AA" tick={{fontSize: 12}} tickLine={false} axisLine={false} dy={10} />
+                  <YAxis yAxisId="left" stroke="#A1A1AA" tick={{fontSize: 12}} tickLine={false} axisLine={false} dx={-10} />
+                  <YAxis yAxisId="right" orientation="right" stroke="#A1A1AA" tick={{fontSize: 12}} tickLine={false} axisLine={false} dx={10} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #E4E4E7', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                  <Line yAxisId="left" type="monotone" name="Glucose" dataKey="glucose" stroke="#D97706" strokeWidth={3} dot={{r: 4}} activeDot={{r: 6}} />
+                  <Line yAxisId="left" type="monotone" name="ALT" dataKey="alt" stroke="#10B981" strokeWidth={3} dot={{r: 4}} activeDot={{r: 6}} />
+                  <Line yAxisId="left" type="monotone" name="AST" dataKey="ast" stroke="#3B82F6" strokeWidth={3} dot={{r: 4}} activeDot={{r: 6}} />
+                  <Line yAxisId="right" type="monotone" name="Creatinine" dataKey="creatinine" stroke="#4C1D95" strokeWidth={3} dot={{r: 4}} activeDot={{r: 6}} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-[#A1A1AA] bg-[#FAFAF7] rounded-[12px] border border-dashed border-[#E4E4E7]">No trend data available</div>
+            )}
           </div>
         </div>
       )}
 
-      {/* Nutrition Tab */}
       {activeTab === "nutrition" && data?.nutrition && (
-        <div className="space-y-[24px]">
-          <div className="grid grid-cols-3 gap-[16px]">
-            <div className="bg-white border border-[#E5E5E5] rounded-[12px] p-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-              <div className="flex items-start justify-between mb-[12px]">
-                <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em]">VITAMIN D</div>
-                <div className="w-2 h-2 rounded-full bg-[#F59E0B]" />
+        <div className="space-y-[24px] animate-in fade-in duration-500">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-[16px]">
+            {[
+              { label: "VITAMIN D", value: data.nutrition.vitaminD, range: "Normal: above 30", unit: "ng/mL", dot: "bg-[#F59E0B]" },
+              { label: "VITAMIN B12", value: data.nutrition.vitaminB12, range: "Normal: above 200", unit: "pg/mL", dot: "bg-[#10B981]" },
+              { label: "IRON", value: data.nutrition.iron, range: "Normal: 60-170", unit: "µg/dL", dot: "bg-[#F59E0B]" }
+            ].map((metric) => (
+              <div key={metric.label} className="bg-white border border-[#E5E5E5] rounded-[16px] p-[20px] shadow-sm">
+                <div className="flex items-start justify-between mb-[12px]">
+                  <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em] font-semibold">{metric.label}</div>
+                  <div className={`w-2 h-2 rounded-full ${metric.dot}`} />
+                </div>
+                <div className="text-[28px] font-bold text-[#18181B] mb-1">{metric.value ?? "N/A"}</div>
+                <div className="text-[12px] text-[#6B6B6B]">{metric.unit} • {metric.range}</div>
               </div>
-              <div className="text-[24px] font-semibold text-[#111111]">{data.nutrition.vitaminD}</div>
-              <div className="text-[12px] text-[#6B6B6B]">{"ng/mL • Normal: above 30"}</div>
-            </div>
+            ))}
+          </div>
 
-            <div className="bg-white border border-[#E5E5E5] rounded-[12px] p-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-              <div className="flex items-start justify-between mb-[12px]">
-                <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em]">VITAMIN B12</div>
-                <div className="w-2 h-2 rounded-full bg-[#10B981]" />
-              </div>
-              <div className="text-[24px] font-semibold text-[#111111]">{data.nutrition.vitaminB12}</div>
-              <div className="text-[12px] text-[#6B6B6B]">{"pg/mL • Normal: above 200"}</div>
-            </div>
-
-            <div className="bg-white border border-[#E5E5E5] rounded-[12px] p-[20px] shadow-[0_1px_3px_rgba(0,0,0,0.06)]">
-              <div className="flex items-start justify-between mb-[12px]">
-                <div className="text-[13px] text-[#6B6B6B] tracking-[0.04em]">IRON</div>
-                <div className="w-2 h-2 rounded-full bg-[#F59E0B]" />
-              </div>
-              <div className="text-[24px] font-semibold text-[#111111]">{data.nutrition.iron}</div>
-              <div className="text-[12px] text-[#6B6B6B]">µg/dL • Normal: 60-170</div>
-            </div>
+          <div className="bg-white border border-[#E5E5E5] rounded-[16px] p-[24px] shadow-sm">
+            <h3 className="text-[18px] font-bold text-[#18181B] mb-[24px]">Nutrition Trends</h3>
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#F4F4F5" vertical={false} />
+                  <XAxis dataKey="date" stroke="#A1A1AA" tick={{fontSize: 12}} tickLine={false} axisLine={false} dy={10} />
+                  <YAxis yAxisId="left" stroke="#A1A1AA" tick={{fontSize: 12}} tickLine={false} axisLine={false} dx={-10} />
+                  <YAxis yAxisId="right" orientation="right" stroke="#A1A1AA" tick={{fontSize: 12}} tickLine={false} axisLine={false} dx={10} />
+                  <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #E4E4E7', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                  <Line yAxisId="left" type="monotone" name="Vitamin D" dataKey="vitamin_d" stroke="#F59E0B" strokeWidth={3} dot={{r: 4}} activeDot={{r: 6}} />
+                  <Line yAxisId="right" type="monotone" name="Vitamin B12" dataKey="vitamin_b12" stroke="#10B981" strokeWidth={3} dot={{r: 4}} activeDot={{r: 6}} />
+                  <Line yAxisId="left" type="monotone" name="Iron" dataKey="iron" stroke="#4C1D95" strokeWidth={3} dot={{r: 4}} activeDot={{r: 6}} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[300px] flex items-center justify-center text-[#A1A1AA] bg-[#FAFAF7] rounded-[12px] border border-dashed border-[#E4E4E7]">No trend data available</div>
+            )}
           </div>
         </div>
       )}

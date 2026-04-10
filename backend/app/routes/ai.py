@@ -64,6 +64,22 @@ def _extract_key_metrics(parsed_data: dict) -> dict:
     return out
 
 
+def _coerce_numeric(value) -> float | None:
+    """Best-effort numeric extraction from parsed metric values."""
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    text = str(value).replace(",", "")
+    match = re.search(r"-?\d+(?:\.\d+)?", text)
+    if not match:
+        return None
+    try:
+        return float(match.group(0))
+    except ValueError:
+        return None
+
+
 def _get_report_title(parsed_data: dict, report_id: int) -> str:
     """Create a readable report title from parsed metrics/category data."""
     if not isinstance(parsed_data, dict):
@@ -384,14 +400,8 @@ async def upload_report(
                             test_name = metric.get("test_name", "").lower()
                             value = metric.get("value")
                             
-                            # Skip if no value
+                            value = _coerce_numeric(value)
                             if value is None:
-                                continue
-                            
-                            # Try to convert to float
-                            try:
-                                value = float(value)
-                            except (TypeError, ValueError):
                                 continue
                             
                             # Map test names to metric fields
@@ -399,7 +409,12 @@ async def upload_report(
                                 metrics_dict["glucose"] = value
                             elif "hba1c" in test_name or "hemoglobin a1c" in test_name:
                                 metrics_dict["hba1c"] = value
-                            elif "total cholesterol" in test_name:
+                            elif "total cholesterol" in test_name or (
+                                "cholesterol" in test_name
+                                and "hdl" not in test_name
+                                and "ldl" not in test_name
+                                and "vldl" not in test_name
+                            ):
                                 metrics_dict["total_cholesterol"] = value
                             elif "ldl" in test_name or "low density lipoprotein" in test_name:
                                 metrics_dict["ldl_cholesterol"] = value
@@ -412,19 +427,19 @@ async def upload_report(
                                 metrics_dict["wbc"] = value
                             elif "rbc" in test_name or "red blood cell" in test_name:
                                 metrics_dict["rbc"] = value
-                            elif "hemoglobin" in test_name and "a1c" not in test_name:
+                            elif ("hemoglobin" in test_name or "hgb" in test_name) and "a1c" not in test_name:
                                 metrics_dict["hemoglobin"] = value
-                            elif "platelet" in test_name:
+                            elif "platelet" in test_name or "plt" in test_name:
                                 metrics_dict["platelets"] = value
                             elif "creatinine" in test_name:
                                 metrics_dict["creatinine"] = value
-                            elif "alt" in test_name or "alanine aminotransferase" in test_name:
+                            elif "alt" in test_name or "alanine aminotransferase" in test_name or "sgpt" in test_name:
                                 metrics_dict["alt"] = value
-                            elif "ast" in test_name or "aspartate aminotransferase" in test_name:
+                            elif "ast" in test_name or "aspartate aminotransferase" in test_name or "sgot" in test_name:
                                 metrics_dict["ast"] = value
-                            elif "vitamin d" in test_name:
+                            elif "vitamin d" in test_name or "25-hydroxy" in test_name or "25 oh" in test_name:
                                 metrics_dict["vitamin_d"] = value
-                            elif "vitamin b12" in test_name or "b12" in test_name:
+                            elif "vitamin b12" in test_name or "b12" in test_name or "cobalamin" in test_name:
                                 metrics_dict["vitamin_b12"] = value
                             elif "iron" in test_name:
                                 metrics_dict["iron"] = value
@@ -449,7 +464,12 @@ async def upload_report(
                                 metrics_dict["glucose"] = value
                             elif "hba1c" in name:
                                 metrics_dict["hba1c"] = value
-                            elif "total cholesterol" in name:
+                            elif "total cholesterol" in name or (
+                                "cholesterol" in name
+                                and "hdl" not in name
+                                and "ldl" not in name
+                                and "vldl" not in name
+                            ):
                                 metrics_dict["total_cholesterol"] = value
                             elif "ldl" in name:
                                 metrics_dict["ldl_cholesterol"] = value
@@ -459,19 +479,19 @@ async def upload_report(
                                 metrics_dict["wbc"] = value
                             elif "rbc" in name:
                                 metrics_dict["rbc"] = value
-                            elif "hemoglobin" in name and "a1c" not in name:
+                            elif ("hemoglobin" in name or "hgb" in name) and "a1c" not in name:
                                 metrics_dict["hemoglobin"] = value
-                            elif "platelet" in name:
+                            elif "platelet" in name or "plt" in name:
                                 metrics_dict["platelets"] = value
                             elif "creatinine" in name:
                                 metrics_dict["creatinine"] = value
-                            elif "alt" in name:
+                            elif "alt" in name or "sgpt" in name:
                                 metrics_dict["alt"] = value
-                            elif "ast" in name:
+                            elif "ast" in name or "sgot" in name:
                                 metrics_dict["ast"] = value
-                            elif "vitamin d" in name:
+                            elif "vitamin d" in name or "25-hydroxy" in name or "25 oh" in name:
                                 metrics_dict["vitamin_d"] = value
-                            elif "vitamin b12" in name:
+                            elif "vitamin b12" in name or "b12" in name or "cobalamin" in name:
                                 metrics_dict["vitamin_b12"] = value
                             elif "iron" in name:
                                 metrics_dict["iron"] = value
@@ -581,12 +601,8 @@ async def update_report(report_id: int, file: UploadFile = File(...),
                             test_name = metric.get("test_name", "").lower()
                             value = metric.get("value")
                             
+                            value = _coerce_numeric(value)
                             if value is None:
-                                continue
-                            
-                            try:
-                                value = float(value)
-                            except (TypeError, ValueError):
                                 continue
                             
                             # Map test names to metric fields
@@ -594,7 +610,12 @@ async def update_report(report_id: int, file: UploadFile = File(...),
                                 metrics_dict["glucose"] = value
                             elif "hba1c" in test_name or "hemoglobin a1c" in test_name:
                                 metrics_dict["hba1c"] = value
-                            elif "total cholesterol" in test_name:
+                            elif "total cholesterol" in test_name or (
+                                "cholesterol" in test_name
+                                and "hdl" not in test_name
+                                and "ldl" not in test_name
+                                and "vldl" not in test_name
+                            ):
                                 metrics_dict["total_cholesterol"] = value
                             elif "ldl" in test_name:
                                 metrics_dict["ldl_cholesterol"] = value
@@ -607,19 +628,19 @@ async def update_report(report_id: int, file: UploadFile = File(...),
                                 metrics_dict["wbc"] = value
                             elif "rbc" in test_name:
                                 metrics_dict["rbc"] = value
-                            elif "hemoglobin" in test_name and "a1c" not in test_name:
+                            elif ("hemoglobin" in test_name or "hgb" in test_name) and "a1c" not in test_name:
                                 metrics_dict["hemoglobin"] = value
-                            elif "platelet" in test_name:
+                            elif "platelet" in test_name or "plt" in test_name:
                                 metrics_dict["platelets"] = value
                             elif "creatinine" in test_name:
                                 metrics_dict["creatinine"] = value
-                            elif "alt" in test_name:
+                            elif "alt" in test_name or "sgpt" in test_name:
                                 metrics_dict["alt"] = value
-                            elif "ast" in test_name:
+                            elif "ast" in test_name or "sgot" in test_name:
                                 metrics_dict["ast"] = value
-                            elif "vitamin d" in test_name:
+                            elif "vitamin d" in test_name or "25-hydroxy" in test_name or "25 oh" in test_name:
                                 metrics_dict["vitamin_d"] = value
-                            elif "vitamin b12" in test_name:
+                            elif "vitamin b12" in test_name or "b12" in test_name or "cobalamin" in test_name:
                                 metrics_dict["vitamin_b12"] = value
                             elif "iron" in test_name:
                                 metrics_dict["iron"] = value

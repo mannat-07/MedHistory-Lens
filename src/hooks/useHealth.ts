@@ -63,7 +63,7 @@ export function usePredictions() {
     try {
       setIsLoading(true);
       const response = await apiClient.post(`/predictions`, { symptoms });
-      setPredictions(response);
+      setPredictions(response as Prediction[]);
       setError(null);
     } catch (err: any) {
       setError(err.message || "Failed to get predictions");
@@ -87,7 +87,7 @@ export function useReports() {
       try {
         setIsLoading(true);
         const response = await apiClient.get(`/reports`);
-        setReports(response);
+        setReports(response as Report[]);
         setError(null);
       } catch (err: any) {
         setError(err.message || "Failed to fetch reports");

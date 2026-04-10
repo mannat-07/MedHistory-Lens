@@ -131,8 +131,8 @@ export function getValidAuthToken(): string | null {
 
 // ============ AUTH ENDPOINTS ============
 export const login = async (email: string, password: string) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const response = await fetch(`${API_URL}/api/auth/login`, {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  const response = await fetch(`${API_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password })
@@ -141,8 +141,8 @@ export const login = async (email: string, password: string) => {
 };
 
 export const register = async (name: string, email: string, password: string) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const response = await fetch(`${API_URL}/api/auth/register`, {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  const response = await fetch(`${API_URL}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, email, password })
@@ -151,16 +151,16 @@ export const register = async (name: string, email: string, password: string) =>
 };
 
 export const getMe = async (token: string) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const response = await fetch(`${API_URL}/api/auth/me`, {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  const response = await fetch(`${API_URL}/auth/me`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
   return response.json();
 };
 
 export const logout = async (token: string) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const response = await fetch(`${API_URL}/api/auth/logout`, {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  const response = await fetch(`${API_URL}/auth/logout`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${token}` }
   });
@@ -169,16 +169,16 @@ export const logout = async (token: string) => {
 
 // ============ DASHBOARD ENDPOINTS ============
 export const getMetrics = async (token: string) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const response = await fetch(`${API_URL}/api/dashboard`, {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  const response = await fetch(`${API_URL}/dashboard`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
   return response.json();
 };
 
 export const saveMetrics = async (data: any, token: string) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const response = await fetch(`${API_URL}/api/health/metrics`, {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  const response = await fetch(`${API_URL}/health/metrics`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -191,32 +191,32 @@ export const saveMetrics = async (data: any, token: string) => {
 
 // ============ HEALTH DATA ENDPOINTS ============
 export const getBloodMetrics = async (token: string) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const response = await fetch(`${API_URL}/api/health/blood`, {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  const response = await fetch(`${API_URL}/health/blood`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
   return response.json();
 };
 
 export const getHeartMetrics = async (token: string) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const response = await fetch(`${API_URL}/api/health/heart`, {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  const response = await fetch(`${API_URL}/health/heart`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
   return response.json();
 };
 
 export const getOrganMetrics = async (token: string) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const response = await fetch(`${API_URL}/api/health/organs`, {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  const response = await fetch(`${API_URL}/health/organs`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
   return response.json();
 };
 
 export const getNutritionMetrics = async (token: string) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const response = await fetch(`${API_URL}/api/health/nutrition`, {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  const response = await fetch(`${API_URL}/health/nutrition`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
   return response.json();
@@ -224,8 +224,8 @@ export const getNutritionMetrics = async (token: string) => {
 
 // ============ CHAT ENDPOINTS ============
 export const sendMessage = async (message: string, token: string) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const response = await fetch(`${API_URL}/api/chat`, {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  const response = await fetch(`${API_URL}/chat`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -237,8 +237,8 @@ export const sendMessage = async (message: string, token: string) => {
 };
 
 export const getChatHistory = async (token: string) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const response = await fetch(`${API_URL}/api/chat/history`, {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  const response = await fetch(`${API_URL}/chat/history`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
   return response.json();
@@ -246,10 +246,10 @@ export const getChatHistory = async (token: string) => {
 
 // ============ REPORTS ENDPOINTS ============
 export const uploadReport = async (file: File, token: string) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
   const form = new FormData();
   form.append('file', file);
-  const response = await fetch(`${API_URL}/api/reports/upload`, {
+  const response = await fetch(`${API_URL}/reports/upload`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}` },
     body: form
@@ -258,18 +258,18 @@ export const uploadReport = async (file: File, token: string) => {
 };
 
 export const getReports = async (token: string) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const response = await fetch(`${API_URL}/api/reports`, {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  const response = await fetch(`${API_URL}/reports`, {
     headers: { Authorization: `Bearer ${token}` }
   });
   return response.json();
 };
 
 export const updateReport = async (reportId: number, file: File, token: string) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
   const form = new FormData();
   form.append('file', file);
-  const response = await fetch(`${API_URL}/api/reports/${reportId}`, {
+  const response = await fetch(`${API_URL}/reports/${reportId}`, {
     method: 'PUT',
     headers: { Authorization: `Bearer ${token}` },
     body: form
@@ -278,8 +278,8 @@ export const updateReport = async (reportId: number, file: File, token: string) 
 };
 
 export const downloadReport = async (reportId: number, token: string) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const response = await fetch(`${API_URL}/api/reports/${reportId}/download`, {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  const response = await fetch(`${API_URL}/reports/${reportId}/download`, {
     headers: { Authorization: `Bearer ${token}` }
   });
 
@@ -292,8 +292,8 @@ export const downloadReport = async (reportId: number, token: string) => {
 };
 
 export const getHealthPredictions = async (symptoms: string[], token: string) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const response = await fetch(`${API_URL}/api/predictions`, {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  const response = await fetch(`${API_URL}/predictions`, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${token}`,
@@ -310,8 +310,8 @@ export const generateDietPlanForReport = async (
   symptoms: string[] = [],
   language: "en" | "hi" = "en"
 ) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const response = await fetch(`${API_URL}/api/reports/${reportId}/diet-plan`, {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  const response = await fetch(`${API_URL}/reports/${reportId}/diet-plan`, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${token}`,
@@ -323,8 +323,8 @@ export const generateDietPlanForReport = async (
 };
 
 export const shareReport = async (reportId: number, token: string) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const response = await fetch(`${API_URL}/api/reports/${reportId}/share`, {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  const response = await fetch(`${API_URL}/reports/${reportId}/share`, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${token}`,
@@ -334,8 +334,8 @@ export const shareReport = async (reportId: number, token: string) => {
 };
 
 export const exportReportPdf = async (reportId: number, token: string, language: "en" | "hi" = "en") => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const response = await fetch(`${API_URL}/api/reports/${reportId}/export-pdf?language=${language}`, {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  const response = await fetch(`${API_URL}/reports/${reportId}/export-pdf?language=${language}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!response.ok) {
@@ -347,8 +347,8 @@ export const exportReportPdf = async (reportId: number, token: string, language:
 
 // ============ SYMPTOMS & PREDICTIONS ENDPOINTS ============
 export const analyzeSymptoms = async (symptoms: string[], token: string) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const response = await fetch(`${API_URL}/api/predictions`, {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  const response = await fetch(`${API_URL}/predictions`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${token}`,
@@ -361,8 +361,8 @@ export const analyzeSymptoms = async (symptoms: string[], token: string) => {
 
 // ============ DIET PLAN ENDPOINTS ============
 export const getDietPlan = async (token: string) => {
-  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
-  const response = await fetch(`${API_URL}/api/diet-plan`, {
+  const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000/api";
+  const response = await fetch(`${API_URL}/diet-plan`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
   return response.json();

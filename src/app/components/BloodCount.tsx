@@ -30,7 +30,7 @@ export function BloodCount() {
     );
   }
 
-  const bloodData = data.bloodCounts || {};
+  const bloodData: any = data.bloodCounts || {};
   
   const metrics = [
     { label: "RBC", value: bloodData.rbc?.toFixed(1) || "N/A", unit: "M/μL", status: "normal", range: "4.5-5.5" },

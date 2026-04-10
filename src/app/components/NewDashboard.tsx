@@ -183,7 +183,7 @@ export function NewDashboard() {
             </div>
           </div>
           
-          <button onClick={() => navigate("/ai-prediction")} className="mt-6 w-full py-2.5 bg-white hover:bg-purple-50 border border-[#E2E8F0] hover:border-[#8B5CF6]/30 text-[#6D28D9] text-[13px] font-semibold rounded-xl transition-colors backdrop-blur-sm z-10 shadow-sm">
+          <button onClick={() => navigate("/reports")} className="mt-6 w-full py-2.5 bg-white hover:bg-purple-50 border border-[#E2E8F0] hover:border-[#8B5CF6]/30 text-[#6D28D9] text-[13px] font-semibold rounded-xl transition-colors backdrop-blur-sm z-10 shadow-sm">
             View Full Report
           </button>
         </div>
