@@ -69,3 +69,15 @@ npm run build
 
 ## Demo Link
 - Live Demo: https://med-history-lens.vercel.app/
+
+## Deployment Note (Important for Reports)
+
+Report PDFs are uploaded by the backend and saved to server storage. In local development this works with the local uploads folder, but in cloud platforms (for example Render) container file systems are ephemeral unless a persistent disk is mounted.
+
+If persistent storage is not configured:
+- uploads may disappear after restart/redeploy
+- report records remain in database but original files cannot be downloaded
+
+For Render deployment, configure:
+- persistent disk mount (for example /var/data)
+- environment variable REPORTS_DIR=/var/data/reports

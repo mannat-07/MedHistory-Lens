@@ -112,10 +112,28 @@ def _get_report_title(parsed_data: dict, report_id: int) -> str:
 
 def _get_reports_directory() -> Path:
     """Resolve and create storage directory for uploaded report PDFs."""
-    backend_root = Path(__file__).resolve().parents[2]
-    reports_dir = backend_root / "uploads" / "reports"
+    configured_dir = os.getenv("REPORTS_DIR", "").strip()
+    if configured_dir:
+        reports_dir = Path(configured_dir).expanduser()
+    else:
+        backend_root = Path(__file__).resolve().parents[2]
+        reports_dir = backend_root / "uploads" / "reports"
     reports_dir.mkdir(parents=True, exist_ok=True)
     return reports_dir
+
+
+def _resolve_report_file_path(report: MedicalReport) -> Path | None:
+    """Return a readable local path for a report file, if it exists."""
+    for candidate in [report.file_path, report.file_url]:
+        if not candidate:
+            continue
+        # Ignore remote URLs; download endpoint supports local files only.
+        if str(candidate).startswith(("http://", "https://")):
+            continue
+        path = Path(candidate)
+        if path.exists() and path.is_file():
+            return path
+    return None
 
 @router.post("/predictions")
 def analyze_symptoms(request: PredictionRequest, db: Session = Depends(get_db), current_user: User = Depends(get_current_user_required)):
@@ -314,7 +332,7 @@ def get_reports(
             "doctor_advice": report.doctor_advice,
             "voice_text": report.doctor_summary,
             "key_metrics": _extract_key_metrics(parsed_data),
-            "can_download": bool(report.file_path or report.file_url)
+            "can_download": _resolve_report_file_path(report) is not None
         })
 
     return {
@@ -326,12 +344,13 @@ def get_reports(
 @router.get("/reports/{report_id}/download")
 async def download_report(report_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user_required)):
     report = db.query(Report).filter(Report.id == report_id).first()
-    if not report or not (report.file_path or report.file_url) or not os.path.exists(report.file_path or report.file_url):
+    file_path = _resolve_report_file_path(report) if report else None
+    if not report or file_path is None:
         raise HTTPException(404, "Report not found")
 
     if report.user_id != int(current_user.id):
         raise HTTPException(status_code=403, detail="Not authorized to access this report")
-    return FileResponse(report.file_path or report.file_url, filename=f"Lab_Report_{report_id}.pdf", media_type="application/pdf")
+    return FileResponse(str(file_path), filename=f"Lab_Report_{report_id}.pdf", media_type="application/pdf")
 
 @router.post("/reports/upload")
 async def upload_report(
