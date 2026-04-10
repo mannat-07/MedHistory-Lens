@@ -35,7 +35,7 @@ export function SignUp() {
     }
 
     try {
-      await register(formData.name, formData.email, formData.password);
+      await register(formData.email, formData.password, formData.name);
       navigate("/dashboard", { replace: true });
     } catch (err) {
       setLocalError(error || "Registration failed. Please try again.");

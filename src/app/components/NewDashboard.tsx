@@ -1,22 +1,79 @@
 import { useNavigate } from "react-router";
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, CartesianGrid, AreaChart, Area, Tooltip } from "recharts";
+import { XAxis, YAxis, ResponsiveContainer, CartesianGrid, AreaChart, Area, Tooltip } from "recharts";
 import { AlertCircle, TrendingUp, Sparkles, Stethoscope, Upload, Activity, Heart, Droplets } from "lucide-react";
 import { DashboardLayout } from "./DashboardLayout";
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { useDashboard } from "../../hooks/useData";
 
 export function NewDashboard() {
   const navigate = useNavigate();
   const { data, isLoading } = useDashboard();
-  
-  const trendData = [
-    { name: "Jan", hb: 13.5, wbc: 6.5, sugar: 92 },
-    { name: "Feb", hb: 13.8, wbc: 6.8, sugar: 95 },
-    { name: "Mar", hb: 14.1, wbc: 7.2, sugar: 88 },
-    { name: "Apr", hb: 14.3, wbc: 7.0, sugar: 90 },
-    { name: "May", hb: 14.5, wbc: 6.9, sugar: 85 },
-    { name: "Jun", hb: 14.8, wbc: 7.5, sugar: 82 },
-  ];
+
+  const numericHbA1c = useMemo(() => {
+    if (!data?.hba1c) return null;
+    const parsed = Number(String(data.hba1c).replace("%", "").trim());
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [data?.hba1c]);
+
+  const riskScore = useMemo(() => {
+    const diabetes = data?.diabetesRisk ?? 0;
+    const heart = data?.heartDiseaseRisk ?? 0;
+    return Math.round((diabetes + heart) / 2);
+  }, [data?.diabetesRisk, data?.heartDiseaseRisk]);
+
+  const trendData = useMemo(() => {
+    const glucoseTrend = data?.metricTrends?.glucose ?? data?.trends ?? [];
+    const cholesterolTrend = data?.metricTrends?.cholesterol ?? [];
+    const hba1cTrend = data?.metricTrends?.hba1c ?? [];
+
+    const byDate = new Map<string, { name: string; glucose?: number; cholesterol?: number; hba1c?: number }>();
+
+    glucoseTrend.forEach((point) => {
+      if (!byDate.has(point.date)) byDate.set(point.date, { name: point.date });
+      byDate.get(point.date)!.glucose = point.value;
+    });
+
+    cholesterolTrend.forEach((point) => {
+      if (!byDate.has(point.date)) byDate.set(point.date, { name: point.date });
+      byDate.get(point.date)!.cholesterol = point.value;
+    });
+
+    hba1cTrend.forEach((point) => {
+      if (!byDate.has(point.date)) byDate.set(point.date, { name: point.date });
+      byDate.get(point.date)!.hba1c = point.value;
+    });
+
+    return Array.from(byDate.values());
+  }, [data?.metricTrends, data?.trends]);
+
+  const glucoseTrendText = useMemo(() => buildTrendText(data?.metricTrends?.glucose ?? data?.trends), [data?.metricTrends?.glucose, data?.trends]);
+  const cholesterolTrendText = useMemo(() => buildTrendText(data?.metricTrends?.cholesterol), [data?.metricTrends?.cholesterol]);
+  const hba1cTrendText = useMemo(() => buildTrendText(data?.metricTrends?.hba1c), [data?.metricTrends?.hba1c]);
+
+  const riskLevel = getRiskLevel(riskScore);
+  const insights = useMemo(() => {
+    const items: Array<{ text: string; color: string }> = [];
+
+    if (data?.doctorSummary) {
+      items.push({ text: data.doctorSummary, color: "#10B981" });
+    }
+    if (data?.healthTrendMessage) {
+      items.push({ text: data.healthTrendMessage, color: "#D97706" });
+    }
+    if (data?.alerts?.length) {
+      const alertText = data.alerts
+        .slice(0, 2)
+        .map((a) => `${a.name}: ${a.value} (ref ${a.range})`)
+        .join(" | ");
+      items.push({ text: `Watch list from latest report: ${alertText}`, color: "#4C1D95" });
+    }
+
+    if (items.length === 0) {
+      items.push({ text: "Upload reports to generate AI insights from your real metrics.", color: "#4C1D95" });
+    }
+
+    return items;
+  }, [data?.alerts, data?.doctorSummary, data?.healthTrendMessage]);
 
   if (isLoading) {
     return (
@@ -31,8 +88,6 @@ export function NewDashboard() {
       </DashboardLayout>
     );
   }
-
-  const riskScore = 28; 
 
   return (
     <DashboardLayout breadcrumb="Intelligence Overview">
@@ -57,29 +112,29 @@ export function NewDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 mb-6">
         <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-6">
           <MetricCard 
-            title="Blood Pressure" 
-            value="118/76" 
-            unit="mmHg" 
-            trend="-2% vs last month" 
-            status="optimal" 
+            title="HbA1c" 
+            value={numericHbA1c ?? "N/A"}
+            unit={numericHbA1c !== null ? "%" : ""}
+            trend={hba1cTrendText}
+            status={getHba1cStatus(numericHbA1c)}
             icon={Heart} 
             color="#10B981" 
           />
           <MetricCard 
             title="Avg. Glucose" 
-            value="92" 
-            unit="mg/dL" 
-            trend="Stable trend" 
-            status="optimal" 
+            value={data?.glucose ?? "N/A"}
+            unit={data?.glucose !== null && data?.glucose !== undefined ? "mg/dL" : ""}
+            trend={glucoseTrendText}
+            status={getGlucoseStatus(data?.glucose)}
             icon={Activity} 
             color="#D97706" 
           />
           <MetricCard 
             title="Cholesterol" 
-            value="185" 
-            unit="mg/dL" 
-            trend="+5% vs last month" 
-            status="warning" 
+            value={data?.cholesterol ?? "N/A"}
+            unit={data?.cholesterol !== null && data?.cholesterol !== undefined ? "mg/dL" : ""}
+            trend={cholesterolTrendText}
+            status={getCholesterolStatus(data?.cholesterol)}
             icon={Droplets} 
             color="#EF4444" 
           />
@@ -120,7 +175,7 @@ export function NewDashboard() {
             </div>
           </div>
           <p className="text-center mt-4 text-[13px] text-[#52525B] font-medium leading-relaxed">
-            Your risk profile is currently <span className="text-[#10B981] font-bold">low</span>. Maintain diet to keep indices stable.
+            Your risk profile is currently <span className="text-[#10B981] font-bold">{riskLevel}</span>. {data?.healthTrendMessage || "Keep uploading reports to refine your risk model."}
           </p>
         </div>
       </div>
@@ -153,8 +208,8 @@ export function NewDashboard() {
                   itemStyle={{ fontSize: 13, fontWeight: 600 }}
                   labelStyle={{ color: '#18181B', fontWeight: 700, marginBottom: '4px' }}
                 />
-                <Area type="monotone" dataKey="hb" name="Hemoglobin" stroke="#4C1D95" strokeWidth={3} fillOpacity={1} fill="url(#colorHb)" />
-                <Area type="monotone" dataKey="sugar" name="Glucose" stroke="#10B981" strokeWidth={3} fillOpacity={1} fill="url(#colorSugar)" />
+                <Area type="monotone" dataKey="cholesterol" name="Cholesterol" stroke="#4C1D95" strokeWidth={3} fillOpacity={1} fill="url(#colorHb)" />
+                <Area type="monotone" dataKey="glucose" name="Glucose" stroke="#10B981" strokeWidth={3} fillOpacity={1} fill="url(#colorSugar)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -167,18 +222,12 @@ export function NewDashboard() {
           </h3>
           
           <div className="space-y-4 flex-1 relative z-10">
-            <div className="p-4 bg-white border border-[#E4E4E7] rounded-xl hover:border-[#4C1D95]/30 transition-all group cursor-pointer relative overflow-hidden shadow-sm">
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#10B981] group-hover:w-1.5 transition-all" />
-              <p className="text-[13px] text-[#52525B] leading-relaxed font-medium">Glucose trajectory is excellent. Continuing your current low-GI diet is recommended.</p>
-            </div>
-            <div className="p-4 bg-white border border-[#E4E4E7] rounded-xl hover:border-[#4C1D95]/30 transition-all group cursor-pointer relative overflow-hidden shadow-sm">
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#D97706] group-hover:w-1.5 transition-all" />
-              <p className="text-[13px] text-[#52525B] leading-relaxed font-medium">Cholesterol shows a slight uptick. Substitute dairy with plant-based alternatives this week.</p>
-            </div>
-            <div className="p-4 bg-white border border-[#E4E4E7] rounded-xl hover:border-[#4C1D95]/30 transition-all group cursor-pointer relative overflow-hidden shadow-sm">
-              <div className="absolute left-0 top-0 bottom-0 w-1 bg-[#4C1D95] group-hover:w-1.5 transition-all" />
-              <p className="text-[13px] text-[#52525B] leading-relaxed font-medium">Hemoglobin is steady. Iron absorption is optimal; continue vitamin C pairings.</p>
-            </div>
+            {insights.map((insight, idx) => (
+              <div key={`${idx}-${insight.color}`} className="p-4 bg-white border border-[#E4E4E7] rounded-xl hover:border-[#4C1D95]/30 transition-all group cursor-pointer relative overflow-hidden shadow-sm">
+                <div className="absolute left-0 top-0 bottom-0 w-1 group-hover:w-1.5 transition-all" style={{ backgroundColor: insight.color }} />
+                <p className="text-[13px] text-[#52525B] leading-relaxed font-medium">{insight.text}</p>
+              </div>
+            ))}
           </div>
           
           <button onClick={() => navigate("/reports")} className="mt-6 w-full py-2.5 bg-white hover:bg-[#F4F4F5] border border-[#E4E4E7] text-[#18181B] text-[13px] font-bold rounded-xl transition-colors shadow-sm">
@@ -190,10 +239,50 @@ export function NewDashboard() {
   );
 }
 
+function buildTrendText(series?: Array<{ date: string; value: number }>) {
+  if (!series || series.length < 2) return "No trend yet";
+  const prev = series[series.length - 2]?.value;
+  const curr = series[series.length - 1]?.value;
+  if (prev === undefined || curr === undefined || prev === 0) return "No trend yet";
+
+  const diffPct = ((curr - prev) / Math.abs(prev)) * 100;
+  if (Math.abs(diffPct) < 0.5) return "Stable trend";
+  const sign = diffPct > 0 ? "+" : "";
+  return `${sign}${diffPct.toFixed(1)}% vs previous`;
+}
+
+function getRiskLevel(score: number) {
+  if (score >= 67) return "high";
+  if (score >= 34) return "moderate";
+  return "low";
+}
+
+function getGlucoseStatus(glucose?: number | null) {
+  if (glucose === null || glucose === undefined) return "neutral";
+  if (glucose >= 126 || glucose < 70) return "danger";
+  if (glucose >= 100) return "warning";
+  return "optimal";
+}
+
+function getHba1cStatus(hba1c?: number | null) {
+  if (hba1c === null || hba1c === undefined) return "neutral";
+  if (hba1c >= 6.5) return "danger";
+  if (hba1c >= 5.7) return "warning";
+  return "optimal";
+}
+
+function getCholesterolStatus(cholesterol?: number | null) {
+  if (cholesterol === null || cholesterol === undefined) return "neutral";
+  if (cholesterol >= 240) return "danger";
+  if (cholesterol >= 200) return "warning";
+  return "optimal";
+}
+
 function MetricCard({ title, value, unit, trend, status, icon: Icon, color }: any) {
   const getStatusColor = () => {
     if (status === "optimal") return "text-[#10B981] bg-[#10B981]/10 border-[#10B981]/20";
     if (status === "warning") return "text-[#D97706] bg-[#D97706]/10 border-[#D97706]/20";
+    if (status === "neutral") return "text-[#52525B] bg-[#F4F4F5] border-[#E4E4E7]";
     return "text-[#EF4444] bg-[#EF4444]/10 border-[#EF4444]/20";
   };
 

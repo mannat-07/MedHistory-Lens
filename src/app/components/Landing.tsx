@@ -63,7 +63,7 @@ export function Landing() {
       </nav>
 
       {/* 1. HERO SECTION */}
-      <section id="home" className="max-w-[1200px] mx-auto px-6 md:px-12 pt-16 pb-24 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center animate-in fade-in duration-700">
+      <section id="home" className="scroll-mt-28 max-w-[1200px] mx-auto px-6 md:px-12 pt-16 pb-24 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center animate-in fade-in duration-700">
         <div className="max-w-[600px] animate-in fade-in slide-in-from-bottom-8 duration-1000">
           <h1 className="text-5xl md:text-[56px] font-bold text-[#18181B] leading-[1.1] tracking-tight mb-6">
             Understand Your Health <br /> Better
@@ -108,7 +108,7 @@ export function Landing() {
               <div className="absolute top-14 left-0 w-8 h-16 bg-[#F4F4F5] border-y border-l border-[#E4E4E7] rounded-l-full transform -rotate-[20deg] origin-top-right"></div>
             </div>
           </div>
-          <div className="absolute -top-4 right-6 w-[360px] bg-white rounded-2xl p-6 shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-[#E4E4E7] transition-transform duration-700 hover:-translate-y-1">
+          <div className="absolute -top-12 left-1/2 -translate-x-1/2 w-[360px] bg-white text-left rounded-2xl p-6 shadow-[0_8px_30px_rgba(0,0,0,0.06)] border border-[#E4E4E7] transition-transform duration-700 hover:-translate-y-1">
             <div className="flex items-center justify-between mb-6">
               <span className="text-sm font-semibold text-[#52525B]">Live Health Snapshot</span>
               <span className="text-xs font-semibold text-[#10B981] bg-[#10B981]/10 px-2.5 py-1 rounded-md">Stable</span>
@@ -134,7 +134,7 @@ export function Landing() {
       </section>
 
       {/* 2. FEATURES SECTION */}
-      <section id="features" className="bg-white py-16 border-y border-[#E4E4E7]/50 animate-in fade-in duration-700">
+      <section id="features" className="scroll-mt-28 bg-white py-16 border-y border-[#E4E4E7]/50 animate-in fade-in duration-700">
         <div className="max-w-[1200px] mx-auto px-6 md:px-12">
           <h2 className="text-xl md:text-2xl font-bold text-[#18181B] text-center mb-10">Features Built for Clarity</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -157,7 +157,7 @@ export function Landing() {
       </section>
 
       {/* 3. HOW IT WORKS */}
-      <section id="how-it-works" className="py-16 max-w-[1200px] mx-auto px-6 md:px-12 text-center animate-in fade-in duration-700">
+      <section id="how-it-works" className="scroll-mt-28 py-16 max-w-[1200px] mx-auto px-6 md:px-12 text-center animate-in fade-in duration-700">
         <h2 className="text-xl md:text-2xl font-bold text-[#18181B] mb-10">How It Works</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {[
@@ -177,7 +177,7 @@ export function Landing() {
       </section>
 
       {/* 4. TESTIMONIALS */}
-      <section id="about" className="py-16 bg-white border-y border-[#E4E4E7]/50 animate-in fade-in duration-700">
+      <section id="about" className="scroll-mt-28 py-16 bg-white border-y border-[#E4E4E7]/50 animate-in fade-in duration-700">
         <div className="max-w-[1200px] mx-auto px-6 md:px-12 text-center">
           <h2 className="text-xl md:text-2xl font-bold text-[#18181B] mb-10">What Users Say</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
