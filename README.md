@@ -27,7 +27,7 @@ MedHistory-Lens is a full-stack health analytics platform that converts uploaded
 
 ### 1. Clone Repository
 ```bash
-git clone <your-repo-url>
+git clone https://med-history-lens.vercel.app/
 cd MedHistory-Lens
 ```
 
